@@ -2847,17 +2847,15 @@ export function tranListToTreeData(list, rootValue) {
 1. **当执行增删改查操作时，手动将当前更改的数据（或与之相关的数据），保存在本地存储**
 
 ```javascript
-// 生成唯一标识符的方法（randomLength 是生成唯一标识符所依赖的随机长度）
-const getUuiD = (randomLength) => {
-    return Number(Math.random().toString().substr(2, randomLength) + Date.now()).toString(36)
-}
+// 利用 uuid 插件生成唯一标识符（需安装依赖：yarn add uuid）
+import { v4 as uuidv4 } from "uuid";
 
 // 根据操作类型的不同（增删改查），保存此次操作变化的数据（操作类型作为键名，与当前操作相关的数据作为值）
 const sendMsg = (operateType, data) => {
     localStorage.setItem(operateType, JSON.stringify({
         data,
         // 确保每次保存时，唯一标识符不同，始终都会触发保存的操作
-        temp: getUuiD(数字)
+        temp: uuidv4()
     }))
 }
 ```
@@ -4286,7 +4284,7 @@ export const hotUpdateImg = (url) => {
 
 
 
-#### 五十四、监听本地存储中的 token 变化
+#### 五十四、本地存储中的 token 变化，强制退出登录
 
 **在 App 根组件中的 created 钩子函数中，书写以下代码：**
 
@@ -4442,14 +4440,24 @@ isShouldReconnect: true
  methods: {
     // 即时通讯连接
     connectWebSocket() {
+      // 备注：每次连接前先清空之前的实例
+      // 向服务器发送断开请求
+      this.ws && this.ws.send("end");
+      // 如果服务器没有进行关闭，确保手动进行关闭
+      this.ws && this.ws.close();
+      // 将 ws 实例清空
+      this.ws = null;
+      // 移除心跳监测
+      this.heartbeatTimer && clearInterval(this.heartbeatTimer);
+       
       // 用户凭据
       const token = this.$store.state.user.token;
       // 连接地址（开发过程中，会读取开发环境中 VUE_APP_WS_HOST 保存的地址，打包部署后，读取不到 VUE_APP_WS_HOST 的值，会读取正式环境的地址）
       const host = process.env.VUE_APP_WS_HOST || window.location.host;
       // 查询字符串所需要的参数（后续要将该对象通过 qs 插件转换为查询字符串格式）
       const query = {
-        // 携带唯一标识符，由前端生成
-        uid: getUuiD(36),
+        // 携带唯一标识符，由前端生成（使用步骤在《监听本地存储的变化》中有介绍，此处不再阐述）
+        uid: uuidv4(),
         // 携带用户凭据
         token,
         其它参数...
