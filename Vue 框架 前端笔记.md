@@ -4029,12 +4029,12 @@ export default {
 
       // 配置需要的功能
       const flv = new FlvExtend({
-        element: videoRef, // *必传
+        element: videoRef, // 必传
         frameTracking: true, // 开启追帧设置
         updateOnStart: true, // 点击播放后更新视频
         updateOnFocus: true, // 获得焦点后更新视频
         reconnect: true, // 开启断流重连
-        reconnectInterval: 0 // 断流重连间隔
+        reconnectInterval: 10000 // 断流重连间隔
       })
 
       // 播放期间由于任何原因发生错误时触发
@@ -4284,7 +4284,7 @@ export const hotUpdateImg = (url) => {
 
 
 
-#### 五十四、本地存储中的 token 变化，强制退出登录
+#### 五十五、本地存储中的 token 变化，强制退出登录
 
 **在 App 根组件中的 created 钩子函数中，书写以下代码：**
 
@@ -4311,7 +4311,7 @@ export const hotUpdateImg = (url) => {
 
 
 
-#### 五十五、全屏功能
+#### 五十六、全屏功能
 
 1. **下载依赖：yarn add screenfull**
 2. **新建全局组件，写入以下代码，并全局注册：**
@@ -4376,7 +4376,7 @@ export default {
 
 
 
-#### 五十六、检验数据是否为有效数据
+#### 五十七、检验数据是否为有效数据
 
 **注意：该工具函数由于经常会在 template 模板中使用，将其挂载到 vue 原型上更为便捷（原因：模块化导入该方法，无法直接在 template 模板上使用）**
 
@@ -4394,7 +4394,7 @@ export const isValidValue = (value) => {
 
 
 
-#### 五十七、将在线 url 地址转换为 file 文件对象
+#### 五十八、将在线 url 地址转换为 file 文件对象
 
 **注意：该工具函数返回的是一个 Promise 对象，因此可以使用 await 进行接收**
 
@@ -4425,7 +4425,7 @@ export const getFileFromUrl = (url) => {
 
 
 
-#### 五十八、Vue 中使用 WebSocket，并形成完整闭环
+#### 五十九、Vue 中使用 WebSocket，并形成完整闭环
 
 1. **在 data 中定义一个变量 isShouldReconnect，该变量用于判断是否可以重连**
 
