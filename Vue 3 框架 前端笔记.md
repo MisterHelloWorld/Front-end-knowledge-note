@@ -580,7 +580,7 @@ const { actions里的方法 } = 仓库名
 import use仓库名一Store from '仓库一的文件路径'
 import use仓库名二Store from '仓库二的文件路径'
 
-// 封装一个 useStore 方法，
+// 封装一个 useStore 方法
 const useStore = () => {
   return {
     // 以对象的形式，保存多个仓库
@@ -636,7 +636,16 @@ const pinia = createPinia() 转变为 ===> const pinia = createPinia().use(persi
     {
       paths: ['state 中需要本地存储的属性名'],
       key: '保存在本地存储中的自定义名称',
-      storage: localStorage
+      storage: localStorage,
+      // 如果是在 uniapp 中，需要按照以下方式配置 storage，使得多端兼容
+      storage: {
+		setItem(key, value) {
+			uni.setStorageSync(key, value)
+		},
+		getItem(key) {
+			return uni.getStorageSync(key)
+		},
+	  }
     }
   ]
 ```
@@ -2861,7 +2870,3 @@ export const countRouterTime = (to: any, from: any) => {
 ```
 
 2. **在路由权限文件中，按需引入上述文件中的 countRouterTime 方法，在路由前置守卫中，最开始的地方调用该方法即可，传入 to 和 from 作为参数**
-
-
-
-##### （二）

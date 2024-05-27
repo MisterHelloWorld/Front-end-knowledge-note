@@ -192,9 +192,11 @@ module.exports = {
 
 ##### （四）vue-cli 进阶配置
 
-**vue-cli 脚手架创建项目后，会包含一个对象，即 process.env，在项目根级别有两个配置文件，分别是 .env.development 和 .env.production 文件，里面的内容是键值对（键 = 值）的形式，且末尾不能有分号，当处于开发环境，会加载 .env.development 里的内容，当处于生产环境，会加载 .env.production 里的内容，因此，在任意文件中，可通过 ” process.env.键 “ 的形式获取相对应被加载配置文件里键的值**
+**vue-cli 脚手架创建项目后，会包含一个对象，即 process.env，在项目根级别有两个配置文件，分别是 .env.development 和 .env.production 文件，里面的内容是键值对（键名 = 键值）的形式，且末尾不能有分号，当处于开发环境，会加载 .env.development 里的内容，当处于生产环境，会加载 .env.production 里的内容，因此，在任意文件中，可通过 ” process.env.键名 “ 的形式获取相对应被加载配置文件里键的值**
 
 **尤其注意：官方规定，键的取名，必须以 VUE_APP_ 开头，否则无法访问**
+
+**尤其注意：项目根级别如果存在一个 .env 文件，其中的变量会在任意环境生效（被访问到）如果特定的环境文件（.env.development 和 .env.production 文件）有相同的变量，则会从特定的环境文件中读取（优先级最高）**
 
 **尤其注意：process.env 有一个自带的 Node 环境变量（NODE_ENV），使用 process.env.NODE_ENV 可以访问到该值，该值依赖于项目的启动命令，自动切换，当处于开发环境时，保存的是 “ development ”，当处于生产环境时，保存的是 ” production “，当处于测试环境时，保存的是 “ test ”**
 
@@ -379,13 +381,13 @@ export default {
 
 
 
-##### （十一）类名 和 style 的设置
+##### （十一）动态类名和动态样式（class 和 style）
 
 **都是基于 v-bind 实现**
 
 1. **设置动态 class（尤其注意，正常类名和 动态class 互不影响）**
 
-   **：class = " { 类名：vue变量（注意是布尔值） } "**
+   **：class = " { 类名：vue变量（注意存放的是布尔值） } "**
 
    **style标签中正常写类名样式，然后通过 vue变量的变化来控制是否使用该类名（控制单个类名的使用）**
 
@@ -401,9 +403,17 @@ export default {
 
 2. **设置动态 style**
 
-   **：style = " { css属性名：' 值 ' } "**
+   **：style = " { css属性名：vue变量（注意存放的是 css 属性值） } "**
 
-   **注意：这里的值如果不使用变量，必须加单引号，如果使用 vue变量，该变量存放的必须是字符串**
+   **注意：这里的 vue变量，存放的必须是字符串，且可以使用三元表达式**
+   
+   
+   
+   **以上写法仅限固定的 css 属性名的属性值切换，当需要根据不同情况，进行复杂的样式变化时，则采取以下写法**
+   
+   **：style = " 计算属性名 "**
+   
+   **计算属性名（）{ 根据不同情况 return { css属性名：' 属性值 '（非变量，而是固定的值，且需要加引号） } }**
 
 
 
@@ -501,6 +511,8 @@ export default {
 **计算属性与函数的区别：计算属性自带缓存，多次调用会从缓存取值，只有发生变化后，才会重新执行，但是methods下的函数多次调用时，会每次都执行**
 
 **尤其注意：计算属性里面只能书写同步代码，不能书写异步代码**
+
+**特别注意（强调）：如果计算属性中 return 的值是通过条件判断而来，需要考虑是否存在某些情况没有走分支，导致 return null 产生报错**
 
 **深入理解：“ 计算属性 = 某个值 ” 表面上是给计算属性赋值，实际上只是把 “ 某个值 ” 传递到该计算属性的 set 函数中，作为参数使用，val 就是 “ 某个值 ”**
 
@@ -686,6 +698,8 @@ export default {
 4. **使用标签：在 template 中书写 < 组件标签名 > </ 组件标签名 > 即可**
 
 **尤其重要：如果组件标签名，采取大驼峰命名法（如 BoxName），在 template 中使用标签，可转换为 < box-name > </ box-name > 的形式**
+
+**尤其注意：封装的组件，大部分情况只承担循环和组件通信的职责，直接给组件绑定事件无效，一般事件都是在组件内部进行绑定触发**
 
 
 
@@ -3912,10 +3926,10 @@ Vue.use(VueLazyload, {
     },
     error({ bindType, el, naturalHeight, naturalWidth, $parent, src, loading, error, Init }) {
       // 若想延长加载的动画，可在显示错误图片的外层嵌套一层延时器（看情况添加）
-      el.style.background = `#fff no-repeat center / 100% url(${错误的图片路径，注意需要模块化引入本地静态资源})`
+      el.style.background = `${el.dataset.bg || "#fff"} no-repeat center / 100% url(${错误的图片路径，注意需要模块化引入本地静态资源})`
     },
     loading({ bindType, el, naturalHeight, naturalWidth, $parent, src, loading, error, Init }) {
-      el.style.background = `#fff no-repeat center/30px url(${加载中的gif图片路径，注意需要模块化引入本地静态资源})`
+      el.style.background = `#fff no-repeat center/30px url(${加载中的图片路径，注意需要模块化引入本地静态资源})`
     }
   }
 })
@@ -3925,7 +3939,7 @@ Vue.use(VueLazyload, {
 
 ```javascript
 export default {
-  // 加载中的gif图片
+  // 加载中的图片
   loading: require('../assets/images/common/loading.gif'),
   // 错误的图片
   error: require('../assets/images/common/error.svg')
@@ -3933,6 +3947,7 @@ export default {
 ```
 
 3. **在 img 标签上，直接使用 v-lazy="真正的图片地址" 即可**
+4. **如需自定义加载错误图片时的背景色，在 img 标签上增加 data-bg 属性并设置需要的颜色，然后在 main.js 懒加载核心代码处使用 el.dataset.bg 获取即可**
 
 
 
@@ -4300,10 +4315,6 @@ export const hotUpdateImg = (url) => {
         this.$router.push("/login");
         // 提示消息
         this.$message.error("开发者已将对应token删除！");
-      } else {
-        // 如果本地存储中 token 未删除，而是做了修改，重新加载当前页面
-        // 页面的重新加载，会让 vuex 重新加载，相应的页面重新发请求，token 会被验证为过期状态，走强制跳转流程
-        location.reload();
       }
     });
   }
@@ -4378,7 +4389,9 @@ export default {
 
 #### 五十七、检验数据是否为有效数据
 
-**注意：该工具函数由于经常会在 template 模板中使用，将其挂载到 vue 原型上更为便捷（原因：模块化导入该方法，无法直接在 template 模板上使用）**
+**需要检验的原因：如果是数组，检验是否为有效数据很方便，只需判断该数组是否存在并且长度是否大于 0 即可，但判断对象则比较麻烦，故作统一封装**
+
+**注意：该工具函数由于经常会在 template 模板中使用，将其挂载到 vue 原型上更为便捷（原因：模块化导入该方法，无法在 template 模板上直接使用）**
 
 ```javascript
 // 校验数据是否为有效数据（空对象或空数组返回 false，也可在 v-if 渲染模板时使用）
