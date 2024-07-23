@@ -146,16 +146,17 @@ module.exports = {
 
 **启动内置的 webpack 本地热更新开发服务器（无需额外配置）：npm run serve**
 
-**注意：使用 Vue-cli 脚手架创建项目时，提供的默认选项 2.0 和 3.0，都只包含 eslint 和 babel，缺少 less 和 less-loader 包，需要额外下载对应版本**
+**注意：使用 Vue-cli 脚手架创建项目时，提供的默认选项 2.0 和 3.0，都只包含 eslint 和 babel，缺少 less 或 sass 依赖及对应 loader 解析器，需要额外下载**
 
 ```bash
+// less 预编译语言需要下载指定版本
 yarn add less@3.0.4 less-loader@5.0.0 -D
 
-// sass 同理（最新版本即可）
+// sass 预编译语言下载最新版本即可
 yarn add sass sass-loader -D
 ```
 
-**实际开发中通常使用自定义选项对项目进行创建，空格选中 CSS Pre-processors，可选择使用 less 语法，无需额外下载 less 和 less-loader 包（sass 同理）**
+**注意：实际开发中通常使用自定义选项对项目进行创建，空格选中 CSS Pre-processors，可选择使用 less 或 sass 语法，无需额外下载**
 
 
 
@@ -169,14 +170,14 @@ yarn add sass sass-loader -D
 // vue 脚手架项目默认的配置文件为 vue.config.js
 module.exports = {
   devServer: {
-    port: 3000, //配置服务器端口号
-    open: true, //浏览器自动打开
+    port: 3000, // 配置服务器端口号
+    open: true, // 浏览器自动打开
   },
-  lintOnSave: false, //关闭eslint检查
+  lintOnSave: false, // 关闭 eslint 项目执行检查，此处关闭并不是指代码不会 eslint 校验，而是 eslint 校验即便报红错误，也不影响项目正常执行
 };
 ```
 
-**补充：在 package.json 文件中，将 scripts 配置项里的 "serve": "vue-cli-service serve" 修改为 "serve": "vue-cli-service serve --hot --open --host 127.0.0.1"，由于设置了 --open，在启动服务器的时候，会自动打开浏览器，无需在 vue.config.js 文件中额外配置 open: true**
+**补充（一般不用）：在 package.json 文件中，将 scripts 配置项里的 "serve": "vue-cli-service serve" 修改为 "serve": "vue-cli-service serve --hot --open --host 127.0.0.1"，由于设置了 --open，在启动服务器的时候，会自动打开浏览器，无需在 vue.config.js 文件中额外配置 open: true**
 
 
 
@@ -699,7 +700,7 @@ export default {
 
 **尤其重要：如果组件标签名，采取大驼峰命名法（如 BoxName），在 template 中使用标签，可转换为 < box-name > </ box-name > 的形式**
 
-**尤其注意：封装的组件，大部分情况只承担循环和组件通信的职责，直接给组件绑定事件无效，一般事件都是在组件内部进行绑定触发**
+**尤其注意（尤其重要！！！）：封装的组件，大部分情况只承担循环和组件通信的职责，直接给组件绑定事件无效，一般事件都是在组件内部进行绑定触发**
 
 
 

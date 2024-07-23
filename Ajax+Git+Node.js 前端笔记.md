@@ -181,7 +181,7 @@ if (Math.random() > 0.5) {
 
    **formData.append（ ' axios 发送请求时必填的参数名 '，该参数名携带的值 ）**
 
-   **尤其注意（特别强调）：使用 formData 包装的文件，必须是最原始的文件，不能是 blob 对象**
+   **尤其注意（特别强调）：使用 formData 包装的文件，要看后端规定的什么格式，若是 file 类型，则必须是最原始的文件，不能是 blob 对象**
 
 3. **将 formData 整体作为 axios 请求携带的参数发送即可**
 
@@ -499,6 +499,21 @@ ssh -T git@gitee.com
 
 1. **在 Powershell 中输入以下命令，进入管理员模式：Start-Process powershell -Verb runAs**
 2. **在管理员模式的 Powershell 中，输入以下命令：set-ExecutionPolicy RemoteSigned，输入 Y 并回车即可**
+
+
+
+#### 使用 http-server 将本地文件进行服务挂载
+
+**当需要模拟访问服务器的在线文件时，可对本地文件进行服务挂载**
+
+**安装步骤：**
+
+1. **全局安装 http-server：npm i http-server -g**
+2. **监测是否安装成功：http-server -v**
+
+**使用步骤：找到当前需要挂载的本地文件夹目录，在地址栏输入 cmd 打开命令窗口，执行 http-server --cors 即可**
+
+**访问：执行 http-server --cors 生成的地址，代表当前挂载的文件夹，依照目录进行访问即可**
 
 
 

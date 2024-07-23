@@ -1458,7 +1458,6 @@ export default [
 ```typescript
 export default defineConfig({
   其它配置...
-  // 配置 @ 语法，使得 vue 项目中可以使用 @ 作为路径
   server: {
     proxy: {
       // 开发环境代理
