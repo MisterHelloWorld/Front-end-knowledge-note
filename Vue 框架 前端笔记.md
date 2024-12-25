@@ -1201,6 +1201,15 @@ default(){
      function (error) {
        // 当响应拦截器发生处理错误，提示错误信息（此处为element组件提示），并使用reject终止执行，该请求的后续操作同时也会终止
        Message.error(error.message)
+       if (error.code === "ECONNABORTED") {
+         Message.error("接口请求超时！")
+       } else if (error.code === "ERR_NETWORK") {
+         Message.error("当前网络不佳，请检查网络后重试！")
+       } else if (error.response.status === 500) {
+         Message.error("接口 500 报错！请联系后端解决！")
+       } else {
+         Message.error(error.message)
+       }
        ...中间其它操作（token 的有感刷新，无感刷新）
        // 此处使用的是错误方法里error
        return Promise.reject(error)
@@ -2710,7 +2719,7 @@ findScroller(document.body);
 
 ##### （二）服务端被动介入
 
-**当页面刷新或者切换页面时，会返回请求数据，如果 Token 过期，会报 401 错误，因此可在响应拦截器中的 error 函数中，通过 error.response 中的一些参数（具体参数需要打印错误对象查看）判断 Token 是否过期，如果过期，退出登录（包括清空 Vuex 中的 Token、本地存储的 Token、跳转到登录页）**
+**当页面刷新或者切换页面时，会返回请求数据，如果 Token 过期，按照规范，后端会返回 401 Unauthorized 错误，因此可在响应拦截器中的 error 函数中，通过 error.response.status === 401 判断 Token 是否过期（如果后端返回的不是 401 错误，axios 则无法将该错误视为响应错误，需在响应拦截器中的 response 函数中进行单独判断处理），如果过期，退出登录（包括清空 Vuex 中的 Token、本地存储的 Token、跳转到登录页）**
 
 **尤其注意：这里必须先删除Token，再进行退出操作，顺序不能反**
 
@@ -3696,7 +3705,25 @@ mounted(){
         // 触发时机
         trigger: "axis",
         // 自定义提示内容（分别代表系列名称、类名名称、类目名称对应的值）
-        formatter: "{a}{b}{c}",
+        formatter: "使用 {a}、{b}、{c}，来自定义提示内容",
+        // 实际开发中，formatter: "使用 {a}、{b}、{c}，来自定义提示内容"，可能无法满足需求（使用该方式，会丢失前面的小图标），因此采用函数形式
+        formatter: (params) => {
+            // 最终要显示的模板内容
+            let tooltipContent = ''
+            // 遍历 params 数组
+            params.forEach((param) => {
+              // 系列名称
+              const seriesName = param.seriesName
+              // 类目名称对应的值
+              const value = param.value
+              // 生成小图标的 HTML
+              const icon = `<span style="display:inline-block;width:10px;height:10px;background-color:${param.color};margin-right:5px;"></span>`
+              // 拼接模板内容
+              tooltipContent += `${icon}${seriesName}: ${value}<br/>`
+            })
+            // 返回最终要显示的模板内容
+            return tooltipContent
+          }
       },
       
       // （三）通用配置之图例配置（最上方的图例标识）

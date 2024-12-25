@@ -1103,6 +1103,24 @@ box-shadow: 0px 0px 0px 颜色;
 
 
 
+### font-family 字体文件库
+
+**实际开发过程中，ui 稿给出的某些文字的字体样式，电脑预设字体中并不包含该字体，更不可能每次都在用户电脑中提前安装该字体，因此需要在前端项目中引入字体文件，进行开发（此处以 vue 项目为例）**
+
+1. **将后缀为 .ttf 格式的字体文件统一放在 assets/fonts 文件夹下**
+2. **新建 fonts.scss 文件，并在其中声明字体，然后在 main.js 中全局引入该 fonts.scss 文件**
+
+```scss
+@font-face {
+  font-family: '自定义字体名称';
+  src: url('../assets/fonts/字体文件.ttf') format('truetype');
+}
+```
+
+3. **在书写 css 过程中，正常给文字设置 font-family 属性即可，值为自定义字体名称**
+
+
+
 ### 纯 CSS 实现全屏滚动
 
 1. **给父容器设置全屏宽高（width: 100vw 和 height: 100vh ），并设置 scroll-snap-type: y mandatory，使其沿 y 轴强制滚动，并设置 overflow-y: scroll 和 overflow-x: hidden，使其 y 轴可以滚动，x 轴隐藏滚动条**

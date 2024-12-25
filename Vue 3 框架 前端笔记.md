@@ -329,8 +329,12 @@ declare module 'vue' {
 
 ```javascript
 const props = defineProps({
-  父组件传递的自定义变量名（也就是自定义接收名）: {
-      类型限定、默认内容、是否必传
+  父组件传递的自定义变量名: {
+      // 此处需注意，vue2 中多个类型支持 Number | String 写法，但是 vue3 中多个类型只能使用 [Number, String] 方式
+      type: 类型,
+      require: true,
+      default: 默认值
+      ......
   },
 })
 ```

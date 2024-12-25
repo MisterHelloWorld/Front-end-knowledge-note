@@ -443,7 +443,7 @@ ssh -T git@gitee.com
 
 5. **解决下载包速度慢的问题**
 
-   **npm 切换淘宝镜像源地址，在终端输入以下命令：npm config set registry http://registry.npm.taobao.org/**
+   **npm 切换淘宝镜像源地址，在终端输入以下命令：npm config set registry https://registry.npmmirror.com**
 
    **查看当前源：npm get registry**
 
@@ -469,7 +469,7 @@ ssh -T git@gitee.com
 
 **查看 yarn 的镜像源地址：yarn config get registry**
 
-**yarn 切换淘宝镜像源地址（npm 的镜像源和 yarn 的镜像源是独立的，需分开单独设置）：yarn config set registry https://registry.npm.taobao.org/**
+**yarn 切换淘宝镜像源地址（npm 的镜像源和 yarn 的镜像源是独立的，需分开单独设置）：yarn config set registry https://registry.npmmirror.com**
 
 1. **下载依赖：yarn add 包名**
 2. **下载所有依赖：yarn**

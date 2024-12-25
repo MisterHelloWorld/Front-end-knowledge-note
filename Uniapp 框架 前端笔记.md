@@ -20,7 +20,11 @@
 **项目开发前需要做的事情：**
 
 1. **登录微信公众平台：将自己的微信账号（非手机号）发给小程序管理员，把自己拉入项目成员，即可通过微信扫码方式登录微信公众平台**
+
 2. **项目绑定 AppID：在 manifest.json 文件中，进行微信小程序配置，填入微信小程序 AppID（通过 “ 微信公众平台 - 开发管理 - 开发设置 - AppID ” 获取）**
+
+   **补充：关于 AppID，不配置不影响开发的进行，但小程序的发布必须要绑定 AppID，才能发布到对应微信小程序账号**
+
 3. **在 “ 微信公众平台 - 开发管理 - 开发设置 - 服务器域名 ” 中，配置 request 合法域名（请求环境地址），uploadFile 合法域名（请求环境地址），此处若不配置，不影响本地开发者工具中正常发送请求，但在真机中则无法正常发送请求**
 
 
@@ -250,7 +254,22 @@ let currentPage = routes[routes.length - 1].route
 
 
 
-##### （二）微信扫码进入小程序指定页面
+##### （二）获取设备顶部安全距离和底部安全距离
+
+```javascript
+// 获取设备信息
+const systemInfo = uni.getSystemInfoSync()
+// 获取设备的安全距离
+const safeAreaInsets = systemInfo.safeAreaInsets
+// 获取顶部安全区域的高度（顶部安全距离，包含顶部状态栏）
+const topSafeArea = safeAreaInsets.top
+// 获取底部安全区域的高度
+const bottomSafeArea = safeAreaInsets.bottom
+```
+
+
+
+##### （三）微信扫码进入小程序指定页面
 
 1. **首先在 “ 微信公众平台 - 开发管理 - 开发设置 - 扫普通链接二维码打开小程序 ” 中，点击添加（此处添加的是二维码的相关配置）**
 
