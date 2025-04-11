@@ -1550,15 +1550,17 @@ const 接收变量 = e.dataTransfer.getData('text/plain')
 
 ```javascript
 if (error.response && error.response.status === xxx) { 执行某些操作 }
+// 以上写法等价于
+if (error.response?.status === xxx) { 执行某些操作 }
 ```
 
 
 
 #### 对象的可选链操作符
 
-**使用方式：obj?.xxx**
+**使用方式：对象?.xxx**
 
-**解释：问号前面的对象如果为空，后面不执行**
+**解释：当对象没有值（undefined 或者 null），直接访问后面的属性会报错（但是空对象直接访问属性不会报错，得到的是 undefined） ，因此在对象后加 ？，后面不执行，直接返回 undefined**
 
 **关于《深入理解 try catch 中 catch 捕捉到的错误信息》中增强代码健壮性的写法，可以改写为如下形式：**
 
