@@ -3621,9 +3621,9 @@ if (response.data instanceof Blob) return response.data
 
 #### 四十三、数字滚动插件
 
-1. **下载依赖：npm i vue-count -to**
+1. **下载依赖：npm i vue-count-to**
 
-2. **使用：`<count-to :start-val="0" :end-val="真正的数据" :duration="1000" />`**
+2. **使用：`<count-to :start-val="0" :end-val="真正的数据" :duration="1000" :decimals="保留的小数位数" />`**
 
 
 
