@@ -1286,7 +1286,9 @@ default: () => ([] 或 {})
 
 **给组件标签名（注意是组件标签名）添加 ref 属性（ref="xxx"），调用该组件内的方法：this.$refs.ref名.函数名 ( )**
 
-**补充：子组件调用父组件的方法，可使用 this.$parent.函数名（）**
+**补充（偶尔用到）：子组件调用父组件的方法，可使用 this.$parent.函数名（）**
+
+**本质： `this.$parent`相当于拿到了父组件的 this，`this.$refs.ref 名`相当于拿到的是子组件的 this**
 
 
 
@@ -2887,7 +2889,7 @@ export function tranListToTreeData(list, rootValue) {
 1. **当执行增删改查操作时，手动将当前更改的数据（或与之相关的数据），保存在本地存储**
 
 ```javascript
-// 利用 uuid 插件生成唯一标识符（需安装依赖：yarn add uuid）
+// 利用 uuid 插件生成唯一标识符（需安装依赖：yarn add uuid@9.0.1，其它版本可能出现问题）
 import { v4 as uuidv4 } from "uuid";
 
 // 根据操作类型的不同（增删改查），保存此次操作变化的数据（操作类型作为键名，与当前操作相关的数据作为值）
@@ -4484,129 +4486,180 @@ export const getFileFromUrl = (url) => {
 
 #### 五十九、Vue 中使用 WebSocket，并形成完整闭环
 
-1. **在 data 中定义一个变量 isShouldReconnect，该变量用于判断是否可以重连**
+1. **新建 webSocket.js 文件，书写以下代码：**
 
 ```javascript
-// 是否应该重连 WebSocket（默认可以重连）
-isShouldReconnect: true
-```
+import qs from 'qs'
+// uuid 唯一标识符
+import { v4 as uuidv4 } from 'uuid'
 
-2. **在 methods 中书写以下方法：**
+// websocket 类
+export default class ConnectWebSocket {
+  // ws 实例
+  ws = null
+  // 是否应该重连 WebSocket（默认可以重连）
+  isShouldReconnect = true
+  // 心跳定时器
+  heartbeatTimer = null
+  // 重连定时器
+  reconnectInterval = null
+  // ws 请求地址
+  url = null
+  // ws 请求参数
+  params = {}
+  // 消息处理函数
+  messageHandler = () => {}
 
-```javascript
- methods: {
-    // 即时通讯连接
-    connectWebSocket() {
-      // 备注：每次连接前先清空之前的实例
+  // 传入 url 地址和携带参数（不传默认为空对象）,消息处理函数
+  constructor (url, params = {}, messageHandler) {
+    // 保存外部传递的请求地址
+    this.url = url
+    // 保存外部传递的请求参数
+    this.params = params
+    // 保存外部传递的消息处理函数
+    this.messageHandler = messageHandler
+    // 初始化 socket
+    this.initSocket()
+  }
+
+  // 初始化 socket
+  initSocket () {
+    // 每次建立连接前，先销毁上次连接，确保始终只有一个 Socket 处于连接状态
+    if (this.ws && this.ws.readyState && this.ws.readyState !== WebSocket.CONNECTING) {
       // 向服务器发送断开请求
-      this.ws && this.ws.send("end");
-      // 如果服务器没有进行关闭，确保手动进行关闭
-      this.ws && this.ws.close();
-      // 将 ws 实例清空
-      this.ws = null;
-      // 移除心跳监测
-      this.heartbeatTimer && clearInterval(this.heartbeatTimer);
-       
-      // 用户凭据
-      const token = this.$store.state.user.token;
-      // 连接地址（开发过程中，会读取开发环境中 VUE_APP_WS_HOST 保存的地址，打包部署后，读取不到 VUE_APP_WS_HOST 的值，会读取正式环境的地址）
-      const host = process.env.VUE_APP_WS_HOST || window.location.host;
-      // 查询字符串所需要的参数（后续要将该对象通过 qs 插件转换为查询字符串格式）
-      const query = {
-        // 携带唯一标识符，由前端生成（使用步骤在《监听本地存储的变化》中有介绍，此处不再阐述）
-        uid: uuidv4(),
-        // 携带用户凭据
-        token,
-        其它参数...
-      };
-      // 建立连接
-      this.ws = new WebSocket(
-        "ws://" +
-          host +
-          "基地址?" +
-          qs.stringify(query)
-      );
+      this.ws && this.ws.send('end')
+    }
+    // 如果服务器没有进行关闭，确保手动进行关闭
+    this.ws && this.ws.close()
+    // 将 ws 实例清空
+    this.ws = null
+    // 用户凭据
+    const token = 从 vuex 中获取
+    // 连接地址（本地开发环境HOST || 正式上线环境HOST）
+    const host = process.env.VUE_APP_BACKEND_HOST || window.location.host
+    // 查询字符串所需要的参数（后续要将该对象转换为查询字符串格式）
+    const query = {
+      // token 凭证
+      token,
+      // uuid 唯一标识符
+      uid: uuidv4(),
+      // 额外携带参数
+      ...this.params
+    }
+    // 建立连接
+    this.ws = new WebSocket('ws://' + host + this.url + '?' + qs.stringify(query))
 
-      // WebSocket 连接成功时触发
-      this.ws.onopen = () => {
-        console.log("WebSocket连接已建立");
-        // 发送心跳检测消息
-        this.sendHeartbeat();
-        // 一旦连接上了，判断当前定时重连是否存在，如果存在，清除定时重连
-        this.reconnectInterval && clearInterval(this.reconnectInterval);
-      };
+    // 连接成功时触发
+    this.ws.onopen = () => {
+      console.log('即将建立连接，当前连接 uid 为：', query.uid)
+      console.log('WebSocket 已建立连接，开启心跳监测！')
+      // 发送心跳检测消息
+      this.sendHeartbeat()
+      // 一旦连接上了，判断当前定时重连是否存在，如果存在，清除定时重连
+      this.reconnectInterval && clearInterval(this.reconnectInterval)
+    }
 
-      // 接收到 WebSocket 消息时触发
-      this.ws.onmessage = (event) => {
-        const res = JSON.parse(event.data);
-        console.log("收到 WebSocket 消息：", res);
-        // 根据业务需求处理数据
-      };
+    // 接收到消息时触发
+    this.ws.onmessage = (event) => {
+      const res = JSON.parse(event.data)
+      this.messageHandler && this.messageHandler(res)
+    }
 
-      // WebSocket 连接断开时触发（没连接上也会触发）
-      this.ws.onclose = () => {
-        console.log("WebSocket 连接已断开");
-        // 无论是意外断线，还是主动断线，都移除心跳监测
-        this.heartbeatTimer && clearInterval(this.heartbeatTimer);
-        // 如果当前为可重连状态
-        if (this.isShouldReconnect) {
-          // 断线重连
-          this.reconnect();
-        }
-      };
-
-      // 错误监听
-      this.ws.onerror = (event) => {
-        if (event.type === "error") {
-          this.$message.error("websocket 连接错误！");
-        }
-      };
-    },
-
-    // 发送心跳检测的方法
-    sendHeartbeat() {
-      // 发送心跳检测消息（每五秒进行一次心跳检测）
-      this.heartbeatTimer = setInterval(() => {
-        if (this.ws.readyState === WebSocket.OPEN) {
-          // 发送心跳消息到服务器
-          this.ws.send("bip");
-        }
-      }, 5000);
-    },
-
-    // 断线重连的方法
-    reconnect() {
-      if (this.ws.readyState === WebSocket.CLOSED) {
-        // 每五秒进行一次重连
-        this.reconnectInterval = setInterval(() => {
-          this.connectWebSocket();
-        }, 5000);
+    // 连接断开时触发（没连接上也会触发）
+    this.ws.onclose = () => {
+      console.log('WebSocket 连接已断开，心跳监测已移除！')
+      // 无论是意外断线，还是主动断线，都移除心跳监测
+      this.heartbeatTimer && clearInterval(this.heartbeatTimer)
+      // 如果当前为可重连状态
+      if (this.isShouldReconnect) {
+        console.log('此次 WebSocket 连接断开，为意外断开，正在主动重连！')
+        // 断线重连
+        this.reconnect()
+      } else {
+        console.log('此次 WebSocket 连接断开，为主动断开，不再重连！')
+        // 判断当前定时重连是否存在，如果存在，清除定时重连
+        this.reconnectInterval && clearInterval(this.reconnectInterval)
       }
-    },
+    }
 
-    // 主动断开连接的方法
-    disConnectWebSocket() {
-      // 主动断开连接，将是否可以重连的状态设置为 false，在连接关闭后，阻止重连
-      this.isShouldReconnect = false;
-      // 向服务器发送断开请求
-      this.ws && this.ws.send("end");
-      // 如果服务器没有进行关闭，确保手动进行关闭
-      this.ws && this.ws.close();
-      // 将 ws 实例清空
-      this.ws = null;
-      // 移除心跳监测
-      this.heartbeatTimer && clearInterval(this.heartbeatTimer);
-    },
+    // 错误监听
+    this.ws.onerror = (event) => {
+      if (event.type === 'error') {
+        console.log('websocket 连接错误！', event)
+      }
+    }
   }
+
+  // 发送心跳检测
+  sendHeartbeat () {
+    // 立即发送一次心跳监测
+    if (this.ws && this.ws.readyState && this.ws.readyState === WebSocket.OPEN) {
+      // 发送心跳消息到服务器
+      this.ws.send('bip')
+    }
+    // 发送心跳检测消息（每五秒进行一次心跳检测）
+    this.heartbeatTimer = setInterval(() => {
+      if (this.ws && this.ws.readyState && this.ws.readyState === WebSocket.OPEN) {
+        // 发送心跳消息到服务器
+        this.ws.send('bip')
+      }
+    }, 5000)
+  }
+
+  // 断线重连
+  reconnect () {
+    // 每一次开启定时重连前，先清除之前的定时重连
+    this.reconnectInterval && clearInterval(this.reconnectInterval)
+    // 如果当前为连接关闭状态
+    if (this.ws && this.ws.readyState === WebSocket.CLOSED) {
+      // 每五秒进行一次重连
+      this.reconnectInterval = setInterval(() => {
+        // 如果服务器没有进行关闭，确保手动进行关闭
+        this.ws && this.ws.close()
+        // 将 ws 实例清空
+        this.ws = null
+        setTimeout(() => {
+          this.initSocket()
+        }, 1000)
+      }, 5000)
+    }
+  }
+
+  // 主动断开连接（销毁）
+  destroy () {
+    // 主动断开连接，将是否可以重连的状态设置为 false，在连接关闭后，阻止重连
+    this.isShouldReconnect = false
+    // 向服务器发送断开请求
+    if (this.ws && this.ws.readyState && this.ws.readyState !== WebSocket.CONNECTING) {
+      this.ws && this.ws.send('end')
+    }
+    // 如果服务器没有进行关闭，确保手动进行关闭
+    this.ws && this.ws.close()
+    // 将 ws 实例清空
+    this.ws = null
+  }
+
+  // 发送消息
+  send (data) {
+    this.ws.send(data)
+  }
+}
 ```
 
-3. **在 beforeDestroy 钩子函数中，调用主动断开连接的方法**
+2. **在需要使用 webSocket 的地方引入该工具类，并按照如下方式进行使用：**
 
 ```javascript
-  beforeDestroy() {
-    // 主动断开连接
-    this.disConnectWebSocket();
+// 每次链接前先销毁
+this.ws && this.ws.destroy()
+// 开启 ws 连接
+this.ws = new ConnectWebSocket(
+  'ws链接地址',
+  {
+    // 需要携带的参数
+  },
+  (res) => {
+    console.log('监听到消息：', res)
   }
+)
 ```
 
-4. **在 mounted 中调用 connectWebSocket 方法即可，如果即时通讯所需要的参数依赖其它请求的参数，需要注意执行顺序的问题**
