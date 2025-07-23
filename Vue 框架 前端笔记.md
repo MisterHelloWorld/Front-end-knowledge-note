@@ -4649,10 +4649,12 @@ export default class ConnectWebSocket {
 2. **在需要使用 webSocket 的地方引入该工具类，并按照如下方式进行使用：**
 
 ```javascript
-// 每次链接前先销毁
-this.ws && this.ws.destroy()
+// 销毁 socket（1.页面销毁时调用; 2.多次创建链接时调用，最好每次建立链接前都先销毁一次）
+// 解释：每次创建由于生成的是多个不同的实例，互相之间独立，因此新发起的 socket 并不会取消上一次发起的 socket，需要手动销毁
+this.实例标识 && this.实例标识.destroy()
+
 // 开启 ws 连接
-this.ws = new ConnectWebSocket(
+this.实例标识 = new ConnectWebSocket(
   'ws链接地址',
   {
     // 需要携带的参数
@@ -4661,5 +4663,8 @@ this.ws = new ConnectWebSocket(
     console.log('监听到消息：', res)
   }
 )
+
+// 发送 socket 消息
+this.实例标识.send(需要发送的消息)
 ```
 
