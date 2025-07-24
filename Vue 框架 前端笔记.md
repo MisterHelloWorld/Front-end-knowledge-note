@@ -4064,29 +4064,29 @@ export default {
 </template>
 
 <script>
-import FlvExtend from 'flv-extend'
+import FlvExtend from "flv-extend";
 
 export default {
   props: {
     // 直播流地址
     liveStreamUrl: {
       type: String,
-      default: ''
-    }
+      default: "",
+    },
   },
-  data () {
+  data() {
     return {
-      player: null
-    }
+      player: null,
+    };
   },
   methods: {
-    init (url) {
+    init(url) {
       // 每次创建实例前，如果 player 实例存在，销毁
       if (this.player) {
-        this.player.close()
+        this.player.close();
       }
       // 当前 video 标签
-      const videoRef = this.$refs.videoPlayer
+      const videoRef = this.$refs.videoPlayer;
 
       // 配置需要的功能
       const flv = new FlvExtend({
@@ -4095,63 +4095,73 @@ export default {
         updateOnStart: true, // 点击播放后更新视频
         updateOnFocus: true, // 获得焦点后更新视频
         reconnect: true, // 开启断流重连
-        reconnectInterval: 10000 // 断流重连间隔
-      })
+        reconnectInterval: 10000, // 断流重连间隔
+      });
 
       // 播放期间由于任何原因发生错误时触发
       flv.onError = (errObj, player) => {
-        console.log('播放期间由于任何原因发生错误时触发：', errObj)
-      }
+        console.log("播放期间由于任何原因发生错误时触发：", errObj);
+      };
 
       // 播放期间由于断流进行重连后触发
       flv.onReconnect = (reconnectObj, player) => {
-        console.log('检测到断流，正在重连：', reconnectObj)
-      }
+        console.log("检测到断流，正在重连：", reconnectObj);
+      };
 
       //  连续 3 帧无变化，视为卡住，自定义处理
       flv.onStuck = (player) => {
-        console.log('连续 3 帧无变化，视为卡住，请自定义处理')
-      }
+        console.log("连续 3 帧无变化，视为卡住，请自定义处理");
+      };
 
       // 调用 init 方法初始化视频
       // init 方法的参数与 flvjs.createPlayer 相同，并返回 flvjs.player 实例
       this.player = flv.init(
         {
-          type: 'flv',
+          type: "flv",
           url,
-          isLive: true
+          isLive: true,
         },
         {
           enableStashBuffer: false, // 如果您需要实时（最小延迟）来进行实时流播放，则设置为false
           autoCleanupSourceBuffer: true, // 对SourceBuffer进行自动清理
           stashInitialSize: 128, // 减少首帧显示等待时长
-          enableWorker: true // 启用分离的线程进行转换
+          enableWorker: true, // 启用分离的线程进行转换
         }
-      )
+      );
 
       // 直接调用play即可播放
-      this.player.play()
-    }
+      this.player.play();
+    },
   },
   watch: {
     // 监听直播流地址
     liveStreamUrl: {
-      handler (newVal, oldVal) {
+      handler(newVal, oldVal) {
         // 初始化加载直播流
         if (newVal && newVal !== oldVal) {
           this.$nextTick(() => {
-            this.init(newVal)
-          })
+            // 连接地址（开发环境地址 || 正式上线环境地址）
+            let url;
+            if (newVal.includes("http")) {
+              url = newVal;
+            } else {
+              // 此处需要在 .env.development 文件中配置后端的 host 地址
+              const host =
+                process.env.VUE_APP_BACKEND_HOST || window.location.host;
+              url = "http://" + host + newVal;
+            }
+            this.init(url);
+          });
         }
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
-  beforeDestroy () {
+  beforeDestroy() {
     // 组件销毁前，销毁直播流
-    this.player.close()
-  }
-}
+    this.player.close();
+  },
+};
 </script>
 
 <style lang="scss" scoped>
@@ -4168,6 +4178,713 @@ export default {
 ```
 
 3. **在需要使用 flv 直播流的地方，使用该组件，并传入直播流地址即可：`<http-flv :liveStreamUrl="直播流地址"></http-flv>`**
+
+
+
+##### （二）webRtc 直播流
+
+1. **在 @/components 目录下新建 WebRtcLive 文件夹，并在其中新建 utils 文件夹，和 index.vue 文件，utils 文件夹中新建 jswebrtc.js 文件**
+2. **在 jswebrtc.js 文件中，书写以下代码：**
+
+```javascript
+var JSWebrtc = {
+  Player: null,
+  VideoElement: null,
+  CreateVideoElements: function () {
+    const elements = document.querySelectorAll(".jswebrtc");
+    for (let i = 0; i < elements.length; i++) {
+      new JSWebrtc.VideoElement(elements[i]);
+    }
+  },
+  FillQuery: function (query_string, obj) {
+    obj.user_query = {};
+    if (query_string.length == 0) return;
+    if (query_string.indexOf("?") >= 0)
+      query_string = query_string.split("?")[1];
+    const queries = query_string.split("&");
+    for (let i = 0; i < queries.length; i++) {
+      const query = queries[i].split("=");
+      obj[query[0]] = query[1];
+      obj.user_query[query[0]] = query[1];
+    }
+    if (obj.domain) obj.vhost = obj.domain;
+  },
+  ParseUrl: function (rtmp_url) {
+    const a = document.createElement("a");
+    a.href = rtmp_url
+      .replace("rtmp://", "http://")
+      .replace("webrtc://", "http://")
+      .replace("rtc://", "http://");
+    let vhost = a.hostname;
+    let app = a.pathname.substr(1, a.pathname.lastIndexOf("/") - 1);
+    const stream = a.pathname.substr(a.pathname.lastIndexOf("/") + 1);
+    app = app.replace("...vhost...", "?vhost=");
+    if (app.indexOf("?") >= 0) {
+      const params = app.substr(app.indexOf("?"));
+      app = app.substr(0, app.indexOf("?"));
+      if (params.indexOf("vhost=") > 0) {
+        vhost = params.substr(params.indexOf("vhost=") + "vhost=".length);
+        if (vhost.indexOf("&") > 0) {
+          vhost = vhost.substr(0, vhost.indexOf("&"));
+        }
+      }
+    }
+    if (a.hostname == vhost) {
+      const re = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
+      if (re.test(a.hostname)) vhost = "__defaultVhost__";
+    }
+    let schema = "rtmp";
+    if (rtmp_url.indexOf("://") > 0)
+      schema = rtmp_url.substr(0, rtmp_url.indexOf("://"));
+    let port = a.port;
+    if (!port) {
+      if (schema === "http") {
+        port = 80;
+      } else if (schema === "https") {
+        port = 443;
+      } else if (schema === "rtmp") {
+        port = 1935;
+      } else if (schema === "webrtc" || schema === "rtc") {
+        port = 1985;
+      }
+    }
+    const ret = {
+      url: rtmp_url,
+      schema: schema,
+      server: a.hostname,
+      port: port,
+      vhost: vhost,
+      app: app,
+      stream: stream,
+    };
+    JSWebrtc.FillQuery(a.search, ret);
+    return ret;
+  },
+  HttpPost: function (url, data) {
+    return new Promise(function (resolve, reject) {
+      let xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300) {
+          const respone = JSON.parse(xhr.responseText);
+          xhr.onreadystatechange = new Function();
+          xhr = null;
+          resolve(respone);
+        }
+      };
+      xhr.open("POST", url, true);
+      xhr.timeout = 5e3;
+      xhr.responseType = "text";
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.send(data);
+    });
+  },
+};
+if (document.readyState === "complete") {
+  JSWebrtc.CreateVideoElements();
+} else {
+  document.addEventListener("DOMContentLoaded", JSWebrtc.CreateVideoElements);
+}
+JSWebrtc.VideoElement = (function () {
+  "use strict";
+  var VideoElement = function (element) {
+    const url = element.dataset.url;
+    if (!url) {
+      throw "VideoElement has no `data-url` attribute";
+    }
+    const addStyles = function (element, styles) {
+      for (const name in styles) {
+        element.style[name] = styles[name];
+      }
+    };
+    this.container = element;
+    addStyles(this.container, {
+      display: "inline-block",
+      position: "relative",
+      minWidth: "80px",
+      minHeight: "80px",
+    });
+    this.video = document.createElement("video");
+    this.video.width = 960;
+    this.video.height = 540;
+    addStyles(this.video, { display: "block", width: "100%" });
+    this.container.appendChild(this.video);
+    this.playButton = document.createElement("div");
+    this.playButton.innerHTML = VideoElement.PLAY_BUTTON;
+    addStyles(this.playButton, {
+      zIndex: 2,
+      position: "absolute",
+      top: "0",
+      bottom: "0",
+      left: "0",
+      right: "0",
+      maxWidth: "75px",
+      maxHeight: "75px",
+      margin: "auto",
+      opacity: "0.7",
+      cursor: "pointer",
+    });
+    this.container.appendChild(this.playButton);
+    const options = { video: this.video };
+    for (const option in element.dataset) {
+      try {
+        options[option] = JSON.parse(element.dataset[option]);
+      } catch (err) {
+        options[option] = element.dataset[option];
+      }
+    }
+    this.player = new JSWebrtc.Player(url, options);
+    element.playerInstance = this.player;
+    if (options.poster && !options.autoplay) {
+      options.decodeFirstFrame = false;
+      this.poster = new Image();
+      this.poster.src = options.poster;
+      this.poster.addEventListener("load", this.posterLoaded);
+      addStyles(this.poster, {
+        display: "block",
+        zIndex: 1,
+        position: "absolute",
+        top: 0,
+        left: 0,
+        bottom: 0,
+        right: 0,
+      });
+      this.container.appendChild(this.poster);
+    }
+    if (!this.player.options.streaming) {
+      this.container.addEventListener("click", this.onClick.bind(this));
+    }
+    if (options.autoplay) {
+      this.playButton.style.display = "none";
+    }
+    if (this.player.audioOut && !this.player.audioOut.unlocked) {
+      let unlockAudioElement = this.container;
+      if (options.autoplay) {
+        this.unmuteButton = document.createElement("div");
+        this.unmuteButton.innerHTML = VideoElement.UNMUTE_BUTTON;
+        addStyles(this.unmuteButton, {
+          zIndex: 2,
+          position: "absolute",
+          bottom: "10px",
+          right: "20px",
+          width: "75px",
+          height: "75px",
+          margin: "auto",
+          opacity: "0.7",
+          cursor: "pointer",
+        });
+        this.container.appendChild(this.unmuteButton);
+        unlockAudioElement = this.unmuteButton;
+      }
+      this.unlockAudioBound = this.onUnlockAudio.bind(this, unlockAudioElement);
+      unlockAudioElement.addEventListener(
+        "touchstart",
+        this.unlockAudioBound,
+        false
+      );
+      unlockAudioElement.addEventListener("click", this.unlockAudioBound, true);
+    }
+  };
+  VideoElement.prototype.onUnlockAudio = function (element, ev) {
+    if (this.unmuteButton) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    this.player.audioOut.unlock(
+      function () {
+        if (this.unmuteButton) {
+          this.unmuteButton.style.display = "none";
+        }
+        element.removeEventListener("touchstart", this.unlockAudioBound);
+        element.removeEventListener("click", this.unlockAudioBound);
+      }.bind(this)
+    );
+  };
+  VideoElement.prototype.onClick = function (ev) {
+    if (this.player.isPlaying) {
+      this.player.pause();
+      this.playButton.style.display = "block";
+    } else {
+      this.player.play();
+      this.playButton.style.display = "none";
+      if (this.poster) {
+        this.poster.style.display = "none";
+      }
+    }
+  };
+  VideoElement.PLAY_BUTTON =
+    '<svg style="max-width: 75px; max-height: 75px;" ' +
+    'viewBox="0 0 200 200" alt="Play video">' +
+    '<circle cx="100" cy="100" r="90" fill="none" ' +
+    'stroke-width="15" stroke="#fff"/>' +
+    '<polygon points="70, 55 70, 145 145, 100" fill="#fff"/>' +
+    "</svg>";
+  VideoElement.UNMUTE_BUTTON =
+    '<svg style="max-width: 75px; max-height: 75px;" viewBox="0 0 75 75">' +
+    '<polygon class="audio-speaker" stroke="none" fill="#fff" ' +
+    'points="39,13 22,28 6,28 6,47 21,47 39,62 39,13"/>' +
+    '<g stroke="#fff" stroke-width="5">' +
+    '<path d="M 49,50 69,26"/>' +
+    '<path d="M 69,50 49,26"/>' +
+    "</g>" +
+    "</svg>";
+  return VideoElement;
+})();
+JSWebrtc.Player = (function () {
+  "use strict";
+  const Player = function (url, options) {
+    this.options = options || {};
+    if (!url.match(/^webrtc?:\/\//)) {
+      throw "JSWebrtc just work with webrtc";
+    }
+    if (!this.options.video) {
+      throw "VideoElement is null";
+    }
+    this.urlParams = JSWebrtc.ParseUrl(url);
+    this.pc = null;
+    this.autoplay = !!options.autoplay || false;
+    this.paused = true;
+    if (this.autoplay) this.options.video.muted = true;
+    this.startLoading();
+  };
+  Player.prototype.startLoading = function () {
+    const _self = this;
+    if (_self.pc) {
+      _self.pc.close();
+    }
+    _self.pc = new RTCPeerConnection(null);
+    _self.pc.ontrack = function (event) {
+      _self.options.video.srcObject = event.streams[0];
+    };
+    _self.pc.addTransceiver("video", { direction: "recvonly" });
+    _self.pc
+      .createOffer()
+      .then(function (offer) {
+        return _self.pc.setLocalDescription(offer).then(function () {
+          return offer;
+        });
+      })
+      .then(function (offer) {
+        return new Promise(function (resolve, reject) {
+          const port = _self.urlParams.port || 1985;
+          let api = _self.urlParams.user_query.play || "/rtc/v1/play/";
+          if (api.lastIndexOf("/") != api.length - 1) {
+            api += "/";
+          }
+          let url = "http://" + _self.urlParams.server + ":" + port + api;
+          for (const key in _self.urlParams.user_query) {
+            if (key != "api" && key != "play") {
+              url += "&" + key + "=" + _self.urlParams.user_query[key];
+            }
+          }
+          const data = {
+            api: url,
+            streamurl: _self.urlParams.url,
+            clientip: null,
+            sdp: offer.sdp,
+          };
+          console.log("offer: ", data);
+          JSWebrtc.HttpPost(url, JSON.stringify(data)).then(
+            function (res) {
+              console.log("answer: ", res);
+              resolve(res.sdp);
+            },
+            function (rej) {
+              reject(rej);
+            }
+          );
+        });
+      })
+      .then(function (answer) {
+        return _self.pc.setRemoteDescription(
+          new RTCSessionDescription({ type: "answer", sdp: answer })
+        );
+      })
+      .catch(function (reason) {
+        throw reason;
+      });
+    if (this.autoplay) {
+      this.play();
+    }
+  };
+  Player.prototype.play = function (ev) {
+    if (this.animationId) {
+      return;
+    }
+    this.animationId = requestAnimationFrame(this.update.bind(this));
+    this.paused = false;
+  };
+  Player.prototype.pause = function (ev) {
+    if (this.paused) {
+      return;
+    }
+    cancelAnimationFrame(this.animationId);
+    this.animationId = null;
+    this.isPlaying = false;
+    this.paused = true;
+    this.options.video.pause();
+    if (this.options.onPause) {
+      this.options.onPause(this);
+    }
+  };
+  Player.prototype.stop = function (ev) {
+    this.pause();
+  };
+  Player.prototype.destroy = function () {
+    this.pause();
+    this.pc && this.pc.close() && this.pc.destroy();
+    this.audioOut && this.audioOut.destroy();
+  };
+  Player.prototype.update = function () {
+    this.animationId = requestAnimationFrame(this.update.bind(this));
+    if (this.options.video.readyState < 4) {
+      return;
+    }
+    if (!this.isPlaying) {
+      this.isPlaying = true;
+      this.options.video.play();
+      if (this.options.onPlay) {
+        this.options.onPlay(this);
+      }
+    }
+  };
+  return Player;
+})();
+export default JSWebrtc;
+```
+
+3. **在 index.vue 文件中，书写以下代码：**
+
+```vue
+<template>
+  <div class="webrtc-live">
+    <video class="video-player" ref="VideoWebrtc" controls autoplay></video>
+  </div>
+</template>
+
+<script>
+import jswebrtc from "./utils/jswebrtc.js";
+export default {
+  name: "WebrtcLive",
+  props: {
+    liveStreamUrl: {
+      type: String,
+      default: null,
+    },
+  },
+  data() {
+    return {};
+  },
+  watch: {
+    // 监听直播流地址
+    liveStreamUrl: {
+      handler(newVal, oldVal) {
+        // 初始化加载直播流
+        if (newVal && newVal !== oldVal) {
+          this.$nextTick(() => {
+            // 连接地址（开发环境地址 || 正式上线环境地址）
+            let url;
+            if (newVal.includes("http")) {
+              url = newVal;
+            } else {
+              // 此处需要在 .env.development 文件中配置后端的 host 地址
+              const host =
+                process.env.VUE_APP_BACKEND_HOST || window.location.host;
+              url = "http://" + host + newVal;
+            }
+            this.init(url);
+          });
+        }
+      },
+      immediate: true,
+    },
+  },
+  methods: {
+    init(url) {
+      new jswebrtc.Player(url, {
+        video: this.$refs.VideoWebrtc,
+        autoplay: true,
+        onPlay: () => {
+          console.log("start play livestream");
+        },
+      });
+    },
+  },
+};
+</script>
+
+<style lang="scss" scoped>
+.webrtc-live {
+  height: 100%;
+  overflow: hidden;
+  .video-player {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+  }
+}
+</style>
+```
+
+4. **将其注册为全局组件，在需要的地方使用：**
+
+```vue
+<web-rtc-live v-else :live-stream-url="直播流地址" />
+```
+
+
+
+##### （三）whep 协议 RTC 直播流
+
+1. **在 @/components 目录下新建 WhepRtcLive 文件夹，并在其中新建 utils 文件夹，和 index.vue 文件，utils 文件夹中新建 whepRTC.js 文件**
+2. **在 whepRTC.js 文件中，书写以下代码：**
+
+```javascript
+export function SrsRtcWhipWhepAsync() {
+  var self = {};
+
+  self.constraints = {
+    audio: true,
+    video: {
+      width: { ideal: 320, max: 576 },
+    },
+  };
+
+  self.publish = async function (url, options) {
+    if (url.indexOf("/whip/") === -1)
+      throw new Error(`invalid WHIP url ${url}`);
+    if (options?.videoOnly && options?.audioOnly)
+      throw new Error(
+        `The videoOnly and audioOnly in options can't be true at the same time`
+      );
+
+    if (!options?.videoOnly) {
+      self.pc.addTransceiver("audio", { direction: "sendonly" });
+    } else {
+      self.constraints.audio = false;
+    }
+
+    if (!options?.audioOnly) {
+      self.pc.addTransceiver("video", { direction: "sendonly" });
+    } else {
+      self.constraints.video = false;
+    }
+
+    if (
+      !navigator.mediaDevices &&
+      window.location.protocol === "http:" &&
+      window.location.hostname !== "localhost"
+    ) {
+      throw new Error("加载失败");
+    }
+    var stream = await navigator.mediaDevices.getUserMedia(self.constraints);
+
+    stream.getTracks().forEach(function (track) {
+      self.pc.addTrack(track);
+
+      // Notify about local track when stream is ok.
+      self.ontrack && self.ontrack({ track: track });
+    });
+
+    var offer = await self.pc.createOffer();
+    await self.pc.setLocalDescription(offer);
+    const answer = await new Promise(function (resolve, reject) {
+      console.log(`Generated offer: ${offer.sdp}`);
+
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function () {
+        if (xhr.readyState !== xhr.DONE) return;
+        if (xhr.status !== 200 && xhr.status !== 201) return reject(xhr);
+        const data = xhr.responseText;
+        console.log("Got answer: ", data);
+        return data.code ? reject(xhr) : resolve(data);
+      };
+      xhr.open("POST", url, true);
+      xhr.setRequestHeader("Content-type", "application/sdp");
+      xhr.send(offer.sdp);
+    });
+    await self.pc.setRemoteDescription(
+      new RTCSessionDescription({ type: "answer", sdp: answer })
+    );
+
+    return self.__internal.parseId(url, offer.sdp, answer);
+  };
+
+  self.play = async function (url, options) {
+    if (url.indexOf("/whip-play/") === -1 && url.indexOf("/whep/") === -1)
+      throw new Error(`invalid WHEP url ${url}`);
+    if (options?.videoOnly && options?.audioOnly)
+      throw new Error(
+        `The videoOnly and audioOnly in options can't be true at the same time`
+      );
+
+    if (!options?.videoOnly)
+      self.pc.addTransceiver("audio", { direction: "recvonly" });
+    if (!options?.audioOnly)
+      self.pc.addTransceiver("video", { direction: "recvonly" });
+
+    var offer = await self.pc.createOffer();
+    await self.pc.setLocalDescription(offer);
+    const answer = await new Promise(function (resolve, reject) {
+      console.log(`Generated offer: ${offer.sdp}`);
+
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function () {
+        if (xhr.readyState !== xhr.DONE) return;
+        if (xhr.status !== 200 && xhr.status !== 201) return reject(xhr);
+        const data = xhr.responseText;
+        console.log("Got answer: ", data);
+        return data.code ? reject(xhr) : resolve(data);
+      };
+      xhr.open("POST", url, true);
+      xhr.setRequestHeader("Content-type", "application/sdp");
+      xhr.send(offer.sdp);
+    });
+    await self.pc.setRemoteDescription(
+      new RTCSessionDescription({ type: "answer", sdp: answer })
+    );
+
+    return self.__internal.parseId(url, offer.sdp, answer);
+  };
+
+  // Close the publisher.
+  self.close = function () {
+    self.pc && self.pc.close();
+    self.pc = null;
+  };
+
+  // The callback when got local stream.
+  self.ontrack = function (event) {
+    // Add track to stream of SDK.
+    self.stream.addTrack(event.track);
+  };
+
+  self.pc = new RTCPeerConnection(null);
+
+  // To keep api consistent between player and publisher.
+  self.stream = new MediaStream();
+
+  // Internal APIs.
+  self.__internal = {
+    parseId: (url, offer, answer) => {
+      let sessionid = offer.substr(
+        offer.indexOf("a=ice-ufrag:") + "a=ice-ufrag:".length
+      );
+      sessionid = sessionid.substr(0, sessionid.indexOf("\n") - 1) + ":";
+      sessionid += answer.substr(
+        answer.indexOf("a=ice-ufrag:") + "a=ice-ufrag:".length
+      );
+      sessionid = sessionid.substr(0, sessionid.indexOf("\n"));
+
+      const a = document.createElement("a");
+      a.href = url;
+      return {
+        sessionid: sessionid, // Should be ice-ufrag of answer:offer.
+        simulator: a.protocol + "//" + a.host + "/rtc/v1/nack/",
+      };
+    },
+  };
+
+  self.pc.ontrack = function (event) {
+    if (self.ontrack) {
+      self.ontrack(event);
+    }
+  };
+
+  return self;
+}
+```
+
+3. **在 index.vue 文件中，书写以下代码：**
+
+```vue
+<template>
+  <div class="whep-rtc-live">
+    <video class="video-player" ref="VideoWebrtc" controls autoplay></video>
+  </div>
+</template>
+
+<script>
+import { SrsRtcWhipWhepAsync } from "./utils/whepRTC.js";
+export default {
+  name: "WhepRtcLive",
+  props: {
+    liveStreamUrl: {
+      type: String,
+      default: null,
+    },
+  },
+  data() {
+    return {};
+  },
+  watch: {
+    // 监听直播流地址
+    liveStreamUrl: {
+      handler(newVal, oldVal) {
+        // 初始化加载直播流
+        if (newVal && newVal !== oldVal) {
+          this.$nextTick(() => {
+            // 连接地址（开发环境地址 || 正式上线环境地址）
+            let url;
+            if (newVal.includes("http")) {
+              url = newVal;
+            } else {
+              // 此处需要在 .env.development 文件中配置后端的 host 地址
+              const host =
+                process.env.VUE_APP_BACKEND_HOST || window.location.host;
+              url = "http://" + host + newVal;
+            }
+            this.init(url);
+          });
+        }
+      },
+      immediate: true,
+    },
+  },
+  methods: {
+    init(url) {
+      if (this.sdk) {
+        this.sdk.close();
+      }
+      this.sdk = new SrsRtcWhipWhepAsync();
+      this.$refs.VideoWebrtc.srcObject = this.sdk.stream;
+      this.sdk
+        .play(url, {
+          videoOnly: true,
+          audioOnly: false,
+        })
+        .catch(function (reason) {
+          this.sdk.close();
+          console.log("错误原因：", reason);
+        });
+    },
+  },
+  beforeDestroy() {
+    // 组件销毁前，销毁直播流
+    if (this.sdk) {
+      this.sdk.close();
+    }
+  },
+};
+</script>
+
+<style lang="scss" scoped>
+.whep-rtc-live {
+  height: 100%;
+  overflow: hidden;
+  .video-player {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+  }
+}
+</style>
+```
+
+4. **将其注册为全局组件，在需要的地方使用：**
+
+```vue
+<whep-rtc-live :live-stream-url="直播流地址" />
+```
 
 
 
@@ -4667,4 +5384,5 @@ this.实例标识 = new ConnectWebSocket(
 // 发送 socket 消息
 this.实例标识.send(需要发送的消息)
 ```
+
 
