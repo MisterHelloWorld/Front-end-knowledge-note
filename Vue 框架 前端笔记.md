@@ -5386,3 +5386,182 @@ this.实例标识.send(需要发送的消息)
 ```
 
 
+
+#### 六十、拖拽移动组件
+
+1. **在 @/components 目录下新建 DragMove 文件夹，并在其中新建 index.vue 文件，注册为全局组件**
+2. **在 index.vue 文件中，书写以下代码：**
+
+```vue
+<template>
+  <div class="dragMove" :class="{ allowResize }" :style="computedStyle" ref="dragMoveRef">
+    <slot />
+  </div>
+</template>
+
+<script>
+import _ from 'lodash'
+export default {
+  name: 'DragMove',
+  props: {
+    // 双向绑定的位置
+    value: {
+      type: Object,
+      // 默认左上角
+      default: () => ({
+        left: 0,
+        top: 0
+      })
+    },
+    // 是否允许调整大小
+    allowResize: {
+      type: Boolean,
+      default: false
+    }
+  },
+
+  computed: {
+    // 计算属性拦截（实际位置，主要改变该值的变化来操控容器位置的变化）
+    position: {
+      get () {
+        return this.value
+      },
+      set (val) {
+        this.$emit('input', val)
+      }
+    },
+
+    // 计算定位样式（主要将实际位置转换为具有px单位的值，用于给行内样式使用，同时过滤掉无效属性）
+    computedStyle () {
+      // 筛选实际位置对象，仅保留属于四个定位方向的属性，且值为 number 类型的
+      const filterObj = _.pickBy(
+        this.position,
+        (value, key) => ['left', 'top', 'right', 'bottom'].includes(key) && typeof value === 'number'
+      )
+      const style = {}
+      Object.entries(filterObj).forEach(([key, value]) => {
+        // key是对象里每一项的键（属性名），value 是对象里每一项的值（属性值）
+        style[key] = `${filterObj[key]}px`
+      })
+      return style
+    }
+  },
+
+  mounted () {
+    // 如果指定了拖拽触发的 DOM，则在指定 DOM 添加拖拽事件
+    if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
+      this.$refs.dragMoveRef.querySelector('[data-trigger]').style.cursor = 'move'
+      this.$refs.dragMoveRef.querySelector('[data-trigger]').addEventListener('mousedown', this.onMousedown)
+    } else {
+      // 否则整个容器都可以拖拽
+      this.$refs.dragMoveRef.style.cursor = 'move'
+      this.$refs.dragMoveRef.addEventListener('mousedown', this.onMousedown)
+    }
+  },
+  methods: {
+    // 鼠标按下触发
+    onMousedown (e) {
+      console.log('鼠标按下了：', e)
+      // 阻止冒泡
+      e.stopPropagation()
+      // 记录当前鼠标相对于拖拽移动容器点击的位置
+      this.recordPosition = {
+        x: e.clientX - this.$refs.dragMoveRef.getBoundingClientRect().left,
+        y: e.clientY - this.$refs.dragMoveRef.getBoundingClientRect().top
+      }
+      // 监听鼠标移动事件
+      window.addEventListener('mousemove', this.onMousemove)
+      // 监听鼠标松开事件
+      window.addEventListener('mouseup', this.onMouseup)
+    },
+
+    // 鼠标移动事件
+    onMousemove (e) {
+      console.log('鼠标在整个视口的位置：', e.clientX, e.clientY)
+
+      // 拿到拖拽移动容器的父容器的相关信息
+      const boundingRect = this.$refs.dragMoveRef.parentNode.getBoundingClientRect()
+
+      // 拿到鼠标相对于父容器的位置
+      const offsetX = e.clientX - boundingRect.left
+      const offsetY = e.clientY - boundingRect.top
+
+      // 拿到拖拽移动容器
+      const dragMoveDom = this.$refs.dragMoveRef
+
+      // 计算拖拽移动容器的位置
+      let left = offsetX - this.recordPosition.x
+      let top = offsetY - this.recordPosition.y
+      // 边界处理
+      if (left <= 0) left = 0
+      if (top <= 0) top = 0
+      if (left > boundingRect.width - dragMoveDom.offsetWidth) {
+        left = boundingRect.width - dragMoveDom.offsetWidth
+      }
+      if (top > boundingRect.height - dragMoveDom.offsetHeight) {
+        top = boundingRect.height - dragMoveDom.offsetHeight
+      }
+
+      // 设置拖拽移动容器的位置（覆盖初始定位的方位，最终以 left 和 top 为准）
+      this.position = { left, top }
+    },
+
+    // 鼠标松开事件
+    onMouseup (e) {
+      // 移除鼠标移动事件（无需再销毁页面的时候移除，因为鼠标必松开）
+      window.removeEventListener('mousemove', this.onMousemove)
+      // 移除鼠标松开事件（无需再销毁页面的时候移除，因为鼠标必松开）
+      window.removeEventListener('mouseup', this.onMouseup)
+    }
+  },
+
+  beforeDestroy () {
+    // 如果指定了拖拽触发的 DOM，则移除指定 DOM 绑定的鼠标按下事件
+    if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
+      this.$refs.dragMoveRef.querySelector('[data-trigger]').removeEventListener('mousedown', this.onMousedown)
+    }
+    // 移除鼠标按下事件
+    this.$refs.dragMoveRef.removeEventListener('mousedown', this.onMousedown)
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+.dragMove {
+  position: absolute;
+  z-index: 999999;
+  // 不允许选中文字
+  user-select: none;
+  //left: 0;
+  //top: 0;
+
+  // 是否允许调整大小
+  &.allowResize {
+    & > div {
+      resize: both; // 允许水平和垂直拉伸
+      overflow: auto; // 允许滚动
+      // 美化滚动条
+      &::-webkit-scrollbar {
+        // 滚动条宽度（宽度为 0 时不可见）
+        width: 0;
+      }
+    }
+  }
+}
+</style>
+```
+
+3. **在任意设置了相对定位的容器中使用：**
+
+```vue
+// 属性介绍： 双向绑定的变量用于指定初始位置（left、top、right、bottom，两两搭配共四种组合，皆为 Number 型），allow-resize 用于控制是否允许调整大小
+<drag-move v-model="positon" allow-resize>
+  // 任意内容，需要设置固定宽高
+  <div class="box">
+    // data-trigger 用于指定触发拖拽移动的 DOM
+    <div data-trigger>点我拖拽</div>
+    <div>内容区域</div>
+  </div>
+</drag-move>
+```
+
