@@ -5448,20 +5448,30 @@ export default {
   },
 
   mounted () {
-    // 如果指定了拖拽触发的 DOM，则在指定 DOM 添加拖拽事件
+    // 如果指定了拖拽触发的 DOM
     if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
-      this.$refs.dragMoveRef.querySelector('[data-trigger]').style.cursor = 'move'
+      // 在指定 DOM 添加拖拽事件
       this.$refs.dragMoveRef.querySelector('[data-trigger]').addEventListener('mousedown', this.onMousedown)
+      // 鼠标光标变成手掌松开形状
+      this.$refs.dragMoveRef.querySelector('[data-trigger]').style.cursor = 'grab'
     } else {
       // 否则整个容器都可以拖拽
-      this.$refs.dragMoveRef.style.cursor = 'move'
       this.$refs.dragMoveRef.addEventListener('mousedown', this.onMousedown)
+      // 鼠标光标变成手掌松开形状
+      this.$refs.dragMoveRef.style.cursor = 'grab'
     }
   },
   methods: {
     // 鼠标按下触发
     onMousedown (e) {
       console.log('鼠标按下了：', e)
+      // 如果指定了拖拽触发的 DOM，则在鼠标按下时，将指定 DOM 的鼠标光标变成手掌抓取形状
+      if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
+        this.$refs.dragMoveRef.querySelector('[data-trigger]').style.cursor = 'grabbing'
+      } else {
+        // 否则将整个容器的鼠标光标变成手掌抓取形状
+        this.$refs.dragMoveRef.style.cursor = 'grabbing'
+      }
       // 阻止冒泡
       e.stopPropagation()
       // 记录当前鼠标相对于拖拽移动容器点击的位置
@@ -5508,6 +5518,13 @@ export default {
 
     // 鼠标松开事件
     onMouseup (e) {
+      // 如果指定了拖拽触发的 DOM，则在鼠标按下时，将指定 DOM 的鼠标光标变成手掌松开形状
+      if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
+        this.$refs.dragMoveRef.querySelector('[data-trigger]').style.cursor = 'grab'
+      } else {
+        // 否则将整个容器的鼠标光标变成手掌松开形状
+        this.$refs.dragMoveRef.style.cursor = 'grab'
+      }
       // 移除鼠标移动事件（无需再销毁页面的时候移除，因为鼠标必松开）
       window.removeEventListener('mousemove', this.onMousemove)
       // 移除鼠标松开事件（无需再销毁页面的时候移除，因为鼠标必松开）
@@ -5530,10 +5547,6 @@ export default {
 .dragMove {
   position: absolute;
   z-index: 999999;
-  // 不允许选中文字
-  user-select: none;
-  //left: 0;
-  //top: 0;
 
   // 是否允许调整大小
   &.allowResize {
