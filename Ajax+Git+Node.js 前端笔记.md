@@ -61,6 +61,7 @@ $.ajax(
 
 ```javascript
 if (Math.random() > 0.5) {
+  // 利用解析无效的 JSON 字符串，达到报错的效果
   JSON.parse("随机模拟请求失败");
 }
 ```

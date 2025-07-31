@@ -5578,3 +5578,31 @@ export default {
 </drag-move>
 ```
 
+
+
+#### 六十一、监听浏览器前台和后台的切换
+
+```javascript
+export default {
+  mounted () {
+    window.addEventListener('visibilitychange', this.onVisibilityChange)
+  },
+  methods: {
+    // 监听事件
+    onVisibilityChange (e) {
+      if (!e.target.hidden) {
+        console.log('浏览器进入前台')
+        // 此处做一些事情，如：重新加载页面
+        window.location.reload()
+      } else {
+        console.log('浏览器进入后台')
+      }
+    },
+  },
+  beforeDestroy () {
+    // 销毁监听事件
+    window.removeEventListener('visibilitychange', this.onVisibilityChange)
+  }
+}
+```
+
