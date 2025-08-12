@@ -51,6 +51,7 @@ export default {
           source: new XYZ({
             // 与运维协商好访问该地图资源的地址
             url: "/map-server/{z}/{x}/{y}.png",
+            // 确定地图资源为墨卡托投影的地图，则在此处配置为墨卡托形式（EPSG:3857）
             projection: "EPSG:3857",
             wrapX: false,
           }),
@@ -65,6 +66,7 @@ export default {
           title: "wmts",
           source: new XYZ({
             url: "http://t0.tianditu.gov.cn/DataServer?T=vec_c&x={x}&y={y}&l={z}&tk=ca0d54bde130e0e4984b58c8fad41a44",
+            // 大部分在线地图，投影形式都是 EPSG:4326 形式
             projection: "EPSG:4326",
             wrapX: false,
             // 若某些在线地图最大层级只到某个级别，想要继续放大，会变空白的情况下，使用如下两行代码，用于指定在多少层级下进行插补画面
@@ -78,6 +80,7 @@ export default {
           title: "wmts",
           source: new XYZ({
             url: "http://t0.tianditu.gov.cn/DataServer?T=cva_c&x={x}&y={y}&l={z}&tk=ca0d54bde130e0e4984b58c8fad41a44",
+            // 大部分在线地图，投影形式都是 EPSG:4326 形式
             projection: "EPSG:4326",
             wrapX: false,
             // 若某些在线地图最大层级只到某个级别，想要继续放大，会变空白的情况下，使用如下两行代码，用于指定在多少层级下进行插补画面
@@ -106,7 +109,7 @@ export default {
         view: new View({
           // 设置中心点（该经纬度地点会在地图中间显示）
           center: [111, 30],
-          // 必须设置，以 4326 格式作为参考坐标
+          // 无论底图是墨卡托投影（EPSG:3857）还是 EPSG:4326，此处都强制转换为 EPSG:4326 形式，后续经纬度统统不需要使用 fromLonLat 进行坐标转换
           projection: "EPSG:4326",
           // 初始层级（数字大：局部详细，数字小：全局概览）
           zoom: 12,
@@ -177,6 +180,8 @@ import Overlay from "ol/Overlay";
 import VectorLayer from "ol/layer/Vector";
 // 用于创建矢量图层源
 import VectorSource from "ol/source/Vector";
+// 用于创建聚合图层源（需要基于矢量图层源创建聚合图层源）
+import Cluster from 'ol/source/Cluster';
 // 用于创建 Feature 要素（常把创建好的 Feature 要素添加进创建好的矢量图层源中）
 import Feature from "ol/Feature";
 
@@ -199,8 +204,16 @@ import Fill from "ol/style/Fill";
 // 用于给文本类中的 stroke 属性创建描边类，设置文字的描边及相关样式
 import Stroke from "ol/style/Stroke";
 
+// 用于在地图上基于某个图层创建选择交互（使用时需指定图层）
+import Select from 'ol/interaction/Select'
+// 选择交互的方式（常见鼠标移入交互）
+import { pointerMove } from 'ol/events/condition'
+
 // 用于在地图上基于某个图层创建绘制交互（使用时需指定图层）
 import Draw from "ol/interaction/Draw";
+
+// 用于将二维数组的经纬度坐标列表转换为地理范围
+import { boundingExtent } from 'ol/extent'
 ```
 
 
@@ -223,6 +236,23 @@ this.map.getView().animate({
   // 动画持续时间
   duration: 1000
 })
+// 将二维数组的经纬度坐标列表转换为地理范围（找到所有坐标点的边界）
+const extent = boundingExtent([[经度, 纬度], [经度, 纬度], ...])
+// 将地图的缩放层级和移动位置调整到某个地理范围（需要先将实际数据，转换成二维数组的经纬度坐标列表，再通过 boundingExtent 方法转换成地理范围）
+this.map.getView().fit(地理范围, {
+  // 指定内边距
+  padding: [100, 100, 100, 100],
+  // 动画持续时间
+  duration: 1000
+})
+// 查找某个要素(需要在生成要素时给每个要素指定 id 唯一标识)
+某个图层源.getFeatureById(给要素指定的的id标识)
+// 更改某个要素的位置（本质是修改要素的几何对象，需要先找到某个要素）
+某个要素.setGeometry(new Point([经度, 纬度]))
+// 给某个要素设置样式
+某个要素.setStyle([new Style({样式}), new Style({样式})...])
+// 设置某个图层显示或者隐藏
+某个图层.setVisible(布尔值)
 ```
 
 
@@ -242,9 +272,20 @@ this.map.getView().animate({
         // 清除图层源中的现有要素
         this.图层名称.getSource().clear()
       }
+      // 每次创建前，先移除图层的选择交互
+      if (this.选择交互名称) {
+        this.map.removeInteraction(this.选择交互名称)
+      }
 
       // 创建矢量图层源
       const vectorSource = new VectorSource()
+      // 若想实现聚合效果，则需要基于矢量图层源创建聚合图层源
+      const cluster = new Cluster({
+        // 聚合距离
+        distance: 30,
+        // 绑定矢量图层源
+        source: vectorSource
+      })
 
       // 遍历数据，创建要素
       数据列表.forEach((item) => {
@@ -252,23 +293,36 @@ this.map.getView().animate({
         const feature = new Feature({
           // 创建点要素
           geometry: new Point([经度, 纬度]),
-          // 该要素需要携带的其它信息数据（注意：自定义标识符是必须的，用于在点击事件中区分当前点击的要素类别）
-          key: '自定义标识符',
+          // 给要素指定 id 唯一标识（实际开发中用于查找要素）
+          id: '实际数据的id',
+          // 要素唯一标识，用于在点击事件中区分当前点击的要素类别（未设置图层唯一标识无法进行区分，或同一个图层下有多个要素类别，必须设置）
+          key: '要素唯一标识',
           // ...其它需要携带的信息数据
         })
-        // 将该要素添加到图层源中
+        // 将该要素添加到矢量图层源中
         vectorSource.addFeature(feature)
       })
 
       // 创建矢量图层
       const 图层名称 = new VectorLayer({
+        // 使用矢量图层源（二选一）
         source: vectorSource,
+        // 若想实现聚合效果，此处使用聚合图层源（二选一）
+        source: cluster,
+        // 图层唯一标识是必须的，用于在点击事件中区分当前点击的图层类别（若未设置，则必须保证要素设置了唯一标识，二者必须要有一个能区分的，优先图层）
+        key: '图层唯一标识',
+        // 图层显示状态（默认显示，后续控制隐藏或者显示只需控制这个值的变化即可）
+        visible: true,
+        // 自定义要素样式
         style: (feature) => {
-          // 拿到当前要素信息
+          // 拿到当前普通要素信息或聚合要素信息（聚合要素是一个特殊的集合要素，其中 properties.features 中包含当前聚合项下所有要素）
           const properties = feature.getProperties()
-          let style = null
-          // 根据当前要素信息中保存的自定义属性进行条件判断，区分不同情况下需要显示的要素样式
-          style = [
+          // 普通要素的样式设置，可根据当前要素信息中保存的自定义属性进行条件判断，区分不同情况下需要显示的要素样式（二选一）
+          return [
+            // 多个样式相互独立
+            new Style({
+              // ...与下方同理     
+            }),
             // 多个样式相互独立
             new Style({
               // image 属性（图标形式）
@@ -315,19 +369,56 @@ this.map.getView().animate({
                 // 背景的内边距
                 padding: [上, 右, 下, 左]
               })
-            })，
-            // 多个样式相互独立
-            new Style({
-              // ...同理     
-            }),
+            })
           ]
-          return style
+          // 若当前是聚合效果，可通过 size===1 来判断当前是否为实际要素并设置实际要素的样式，否则为聚合状态的样式（二选一）
+          const size = properties.features.length
+          if (size === 1) {
+            // 拿到当前聚合形式下实际要素信息
+            const currentProperties = properties.features[0].getProperties()
+            // 可根据要素信息中保存的自定义属性进行条件判断，区分不同情况下需要显示的要素样式
+            return [
+              // 多个样式相互独立
+              new Style({
+              // ...     
+              }),
+              // 多个样式相互独立
+              new Style({
+              // ...     
+              }),
+            ]
+          } else {
+            return [
+              // 多个样式相互独立
+              new Style({
+              // ...     
+              }),
+              // 多个样式相互独立
+              new Style({
+              // ...     
+              }),
+            ]
+          }
+          // 若想控制要素的显示或者隐藏，只需要在样式函数中，根据要素信息判断，返回 null 即可隐藏（最优解）
         }
       })
+      
+        // 基于图层创建选择交互
+      const 选择交互名称 = new Select({
+        layers: [图层名称],
+        // 选择交互方法（鼠标移入）
+        condition: pointerMove,
+        style: (feature) => { 鼠标移入时的样式 }
+      })
+
       // 添加该图层
       this.map.addLayer(图层名称)
-      // 记录该图层
+      // 记录该图层（用于判断图层是否存在，移除图层，或在实际开发中查找该图层中某个要素更新位置等）
       this.图层名称 = 图层名称
+      // 添加该交互
+      this.map.addInteraction(选择交互名称)
+      // 记录该交互
+      this.选择交互名称 = 选择交互名称
     }
 ```
 
@@ -335,5 +426,93 @@ this.map.getView().animate({
 
 ```javascript
     this.创建图层的方法(数据列表)
+```
+
+
+
+#### 五、关于获取要素携带的信息数据详解
+
+**前提须知：要素携带的额外信息数据，最终会存放在要素的 value 当中，与 geometry 几何信息在一起**
+
+**通用取值方法：feature.getProperties()，拿到的是要素的 value 值**
+
+**补充：feature.get(属性名)可直接拿到 value 中的某个属性**
+
+##### （一）普通要素
+
+**点击或者 style 函数中拿到的 feature，就是当前要素本身，可直接通过 feature.getProperties() 方法拿到要素携带的信息数据及几何信息**
+
+##### （二）聚合要素
+
+**聚合状态下，无论是点击，还是 style 函数中拿到的 feature，实际上是一个特殊的集合要素，value 中包含的是 features（集合要素包含的所有要素，数组形式）和 geometry（集合要素的几何信息），本质上可以理解为这个集合要素也携带了额外的信息数据，只不过这个信息数据名字叫 features，包含了所有要素，因此仍然可以通过 feature.getProperties() 方法拿到这个集合要素中的 features 数组信息，当拿到该数组中某一个实际要素时，可再次通过 feature.getProperties() 方法拿到该实际要素携带的信息数据及几何信息**
+
+
+
+#### 六、地图加载完成后，绑定点击事件和移动事件
+
+```vue
+<template>
+  <div class="map-wrap">
+    <!--使用地图组件-->
+    <base-map ref="baseMap" @renderComplete="renderComplete" />
+  </div>
+</template>
+
+<script>
+export default {
+  name: "MapWrap",
+  methods: {
+    // 地图加载完成触发
+    async renderComplete(map) {
+      // 保存地图实例
+      this.map = map;
+
+      // 监听地图点击事件
+      map.on("click", (e) => {
+        console.log("当前鼠标点击位置的经纬度：", e.coordinate);
+        // 拿到当前点击的要素所属的图层
+        const layer = map.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
+          // 返回当前要素
+          return layer
+        })
+        // 拿到当前点击的要素
+        const feature = map.forEachFeatureAtPixel(evt.pixel, (feature) => {
+          // 返回当前要素
+          return feature
+        })
+        // 如果当前点击的要素所属图层存在
+        if (layer) {
+          // 拿到当前图层信息
+          const currentLayerInfo = layer.getProperties()
+          // 根据图层唯一标识区分当前点击的是什么图层
+          if (currentLayerInfo.key === '图层唯一标识') {
+            // 如果点击的要素存在
+            if (feature) {
+              // 拿到当前要素信息
+              const currentFeatureInfo = feature.getProperties()
+              if (currentFeatureInfo.key === '要素唯一标识') {
+                // 执行某些操作...
+              }
+            }
+          }
+        } else {
+          console.log('点击了地图空白区域')
+        }
+      });
+      // 监听鼠标移动事件
+      map.on("moveend", (e) => {
+      });
+    },
+  },
+};
+</script>
+
+<style lang="scss" scoped>
+.map-wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+</style>
 ```
 
