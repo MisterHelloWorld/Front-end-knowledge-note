@@ -765,29 +765,57 @@ new Date(时间对象.getTime() + 1000)
 
 ### replace 方法的进阶使用：正则替换最终版
 
-**基础用法：字符串变量名 . replace (被替换的字符串或者正则表达式，要替换的新字符串)**
+**（1）基础用法：字符串变量 . replace (需要被替换的字符串，新字符串)**
 
 **第一个参数，如果是普通字符串，默认只会替换字符串中第一个与之匹配的内容，后面的内容不会再替换**
 
-**第一个参数，如果是正则表达式，可以使用 gi 全局替换多个并忽略大小写，但正则表达式里面不可以使用变量名（被替换内容是动态改变、不固定的）**
+
+
+**（2）进阶：字符串变量 . replace (正则表达式，(match) => { return 新内容（模板字符串搭配 match 使用） })**
+
+**第一个参数，如果是正则表达式，可以使用 gi 全局替换多个并忽略大小写**
 
 **因此可以采取正则替换的最终解决方案：**
 
-1. **利用 RegExp 正则表达式构造函数，创建一个正则对象**
+1. **利用 RegExp 构造函数，将某个特定字符或者某个字符串形式的正则文本（可以是变量形式）转换成一个正则对象**
 
 ```javascript
-const reg = new RegExp(变量形式的被替换的字符串, 'gi')
+// 第一个参数是被替换的内容，这里可以书写变量，第二个参数是匹配模式，即全局匹配多个并忽略大小写
+const reg = new RegExp(某个特定字符或者某个字符串形式的正则文本, 'gi')
 ```
-
-**注意：第一个参数是被替换的内容，这里可以书写变量，第二个参数是匹配模式，即全局匹配多个并忽略大小写**
 
 2. **将 reg 作为整个被替换的内容，供 replace 方法使用**
 
 ```javascript
-字符串变量名.replace(reg, 要替换的新字符串)
+// match 为当前被匹配到的字符
+字符串变量名.replace(reg, (match) => { return 新内容（模板字符串搭配 match 使用） })
 ```
 
-**注意：第二个参数是要替换的新字符串，可以是模板字符串，携带变量使用**
+**常见方法：在 vue 中的 methods 里定义高亮方法（不是过滤器），配合 v-html 使用替换特定的字符**
+
+```javascript
+// 高亮数字
+highlightNumber (str) {
+  // 字符串形式的正则文本（匹配数字）
+  const pattern = '\\d+'
+  // 转换为正则对象
+  const reg = new RegExp(pattern, 'gi')
+  // 进行正则替换，并返回新的字符串
+  return str.replace(reg, (match) => {
+    return `<span style="color: red;">${match}</span>`
+  })
+}
+
+// 高亮特定的关键词
+highlightNumber (str, keyWords) {
+  // 转换为正则对象
+  const reg = new RegExp(keyWords, 'gi')
+  // 进行正则替换，并返回新的字符串
+  return str.replace(reg, (match) => {
+    return `<span style="color: red;">${match}</span>`
+  })
+}
+```
 
 
 

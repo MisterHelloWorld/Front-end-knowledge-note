@@ -388,15 +388,19 @@ export default {
 
 1. **设置动态 class（尤其注意，正常类名和 动态class 互不影响）**
 
-   **：class = " { 类名：vue变量（注意存放的是布尔值） } "**
+   **：class = " { 类名：vue变量（注意该变量为真值，一般为布尔值，也可以是某个固定的值来代表存在） } "**
 
-   **style标签中正常写类名样式，然后通过 vue变量的变化来控制是否使用该类名（控制单个类名的使用）**
+   **注意：如果类名是通过 scss 循环语法动态生成的（上百、上千个不同的类名），此处动态类名不能直接使用模板字符串，而是需要中括号包裹**
+
+   **：class = " { [`固定类名字符串-${vue变量}`]：vue变量（此时 vue变量是某个固定的值来代表存在） } "**
+
+   **style 标签中正常写类名样式，然后通过 vue变量的变化来控制是否使用该类名（控制单个类名的使用）**
 
    **补充：除了布尔值的 vue变量，此处也可以是条件表达式，来判断是否为 true，用来控制是否使用该类名（ ：class = " { 类名：条件表达式） } " ）**
 
    
 
-   **以上写法仅限单个类名，当需要根据不同情况切换不同类名，则必须使用三元表达式，但是，使用三元表达式需要换另一种写法（适用于多个类名的切换）**
+   **以上写法仅限单个类名，当需要根据不同情况切换不同类名（注意是不同类名，至少有两个，如果只有一个类名使用标准语法即可），则必须使用三元表达式，但是，使用三元表达式需要换另一种写法（适用于多个类名的切换）**
 
    **：class = " [ 条件 ? ' 类名1 ' : ' 类名2 ' ]"**
 
@@ -582,6 +586,8 @@ export default {
 **尤其强调：watch 侦听的变量名不需要加 this**
 
 **尤其注意：当侦听的时复杂类型数据（object 引用类型：数组或者对象），使用 “ 深度侦听 ” ；当遇到某个组件是刚创建出来的情况，使用 “ 立即执行 ”** 
+
+**补充说明（特别强调）：某些情况下需要同时监听多个异步数据，并且同时满足才执行某些操作，单纯只监听一个无法实现（另一个数据由于异步可能无法获取），此时可以利用计算属性进行多个数据的满足条件判断，再监听该计算属性执行某些操作**
 
 **深入理解 watch 频繁触发的部分：handler（）{ 此处内容会频繁触发 } 是 es6 的新写法，原生写法如下**
 
@@ -777,6 +783,12 @@ Vue.use(Component)
    **尤其注意：export default 下的其它配置项，访问 data 和 props 配置项里的数据，都需要在前面加 this**
    
    **补充：若父传子的数据，不使用 props 进行接收，那么会统统保存在 $attrs 这个特殊属性中，它包含了父组件传递给子组件的所有非 props 属性，也就是说，它包含了除了子组件明确使用 props 接收之外的所有父组件传递的属性，使用 `$attrs.属性名` 进行访问**
+   
+   **补充（常见）：若父传子的数据，传递的是本地静态资源（如图片、视频等），通常情况需要在 script 标签中通过 import 引入该静态资源，然后保存在变量中，然后传递的是这个变量，但最简单的方法是，在组件标签上通过 require 直接传递**
+   
+   ```vue
+   <自定义组件 :自定义变量名="require('静态资源路径')" />
+   ```
    
    
    
@@ -1385,39 +1397,34 @@ default: () => ([] 或 {})
 
 ##### （三）组件插槽的使用（用于自定义组件内部标签及数据）
 
-1. **子组件内部使用 slot 标签，准备插槽（自定义部分）：**
+1. **组件内部使用 slot 标签，定义插槽：**
 
-   ```html
-   < slot name=" 插槽名 " :key=" 数据变量名 "> 默认内容 < /slot >
+   ```vue
+   < slot name="自定义插槽名" :需要暴露出去的自定义属性名称1="数据1" :需要暴露出去的自定义属性名称2="数据2">
+       // 当在外部使用该插槽时，没有被传入内容，或者未使用该插槽，则显示默认内容
+       默认内容 
+   < /slot >
    ```
 
-   **注意：slot 标签内部填入默认内容，当没有被传入具体的标签，显示默认内容**
+   **注意：定义插槽时，若不写自定义插槽名，则默认为匿名插槽（相当于 name 是 default，可省略），匿名插槽（默认插槽）和具名插槽可以同时存在，且默认插槽常显示主体内容部分**
 
-   **注意：匿名插槽的 name 是 default，可省略，但在子组件暴露数据，父组件插入标签时，需要在 template 标签上使用 v-slot:default=“自定义接收名”**
-
-   **尤其注意：匿名插槽（默认插槽）和具名插槽可以同时存在，且默认插槽常显示主体内容部分**
-
-   **注意：name 属性可以让父组件插入标签到指定的插槽（父组件插入标签时，需要在 template 标签上使用 v-slot：插槽名）**
-
-   **注意：暴露子组件里的数据（：key = " 数据变量名 "），可以使外部父组件插入标签时填入数据（可以暴露多个数据）**
-
-2. **父组件插入标签及数据：**
+2. **在使用组件时，可利用插槽插入自定义内容及数据：**
 
    ```html
-   <子组件标签名>
-   <template v-slot:插槽名=“自定义接收名（用于接收子组件传来的数据，建议与插槽名保持一致）”> 传入具体的标签 </template>    
-   </子组件标签名>
+   <组件标签名>
+   // 通过 "自定义接收名.暴露出来的属性名称1"、"自定义接收名.暴露出来的属性名称2" 进行访问数据
+   <template v-slot:插槽名=“自定义接收名（用于接收组件内部该插槽传来的数据）”> 自定义内容 </template>    
+   </组件标签名>
    ```
-
-   **注意：父组件插入标签时，需要在 template 标签上使用 v-slot = ” 自定义接收名 “ 接收数据（ 自定义接收名 . key，就是子组件暴露出的 key 数据 ）**
-
-   **尤其注意：当子组件暴露多个数据时，可以利用对象解构的方式接收数据（v-slot = ” { key1，key2 } “）**
+```
+   
+**尤其注意：当组件内部插槽暴露了多个数据时，可以利用对象解构的方式接收数据（v-slot:插槽名 = “{ 暴露出来的属性名称1, 暴露出来的属性名称2 }”）**
    
    **尤其注意：当如 v-slot：插槽名 和 v-slot = " 自定义接收名 " 同时存在，必须连写：v-slot：插槽名 = " 自定义接收名 " 或 #插槽名 = “ 自定义接收名 ”**
-
+   
 3. **插槽的进阶使用：**
 
-   **通常情况下，可以考虑将子组件中涉及到操作父组件中数据的功能模块使用插槽代替，这样可以在父组件中使用该插槽，插入功能性模块，便于直接操作父组件中的数据（原理：涉及到插槽的作用域，虽然功能性模块作为内容渲染在子组件里，但实际写在父组件这个文件中，因此它的作用域范围也只对父组件生效，只会调用父组件里的事件，使用父组件里的数据）**
+   **通常情况下，可以考虑将组件中涉及到操作父组件中数据的功能模块使用插槽代替，这样可以在父组件中使用该插槽，插入功能性模块，便于直接操作父组件中的数据（原理：涉及到插槽的作用域，虽然功能性模块作为内容渲染在子组件里，但实际写在父组件这个文件中，因此它的作用域范围也只对父组件生效，只会调用父组件里的事件，使用父组件里的数据）**
 
 
 
@@ -1449,7 +1456,7 @@ default: () => ([] 或 {})
        处理程序（例子：img标签的图片加载错误会自动触发onerror事件，给该img标签绑定该事件，会在图片加载错误时自动触发该事件函数）
      }
    })
-   ```
+```
 
 3. **在 main.js 文件中直接引入（执行）src/directives/index.js 文件即可：import '@/directives'**
 
@@ -2434,6 +2441,8 @@ export function removeToken() {
 
 **尤其注意：无论是 REM 适配，还是 VW 适配，相关插件都不会对行内样式书写的 px 单位进行自动转译，需要手动计算（px 单位的宽高 / 375 * 当前屏幕尺寸）**
 
+**尤其注意：无论是 REM 适配，还是 VW 适配，都是等比例适配，若显示器不是符合该比例的分辨率，可能会出现留白，或底部显示不全，正常情况下够用，但在大屏这种需要一屏显示完整的情况下，每个容器的高度则需要采用百分比形式**
+
 ##### （一）REM 适配（需要两个插件）
 
 **（Ⅰ）动态设置 REM 基准值（这个包的作用是，当屏幕尺寸改变，HTML 根标签的 font-size 跟着变化）**
@@ -2611,6 +2620,8 @@ findScroller(document.body);
 **当 style 标签有 scoped 属性时，会导致它的 CSS 只作用于当前组件中的元素，因此子组件的样式不归当前组件 scoped 管辖，即无法使用子组件自带的类名修改样式，必须在其类名前加上 /deep/ 才能使 scoped 作用的更深，如果是给子组件另外起了类名，则可以直接使用该类名对样式进行修改**
 
 **注意：某些情况下，不支持 /deep/，可以尝试使用 ::v-deep，如果深度选择器不起作用，可考虑加重权限（ ! important ）**
+
+**尤其注意：如果以上都不生效，很可能最外层已经使用了深度作用选择器，因此里面不能再次使用深度作用选择器（ ::v-deep 的里面不能再用 ::v-deep ）**
 
 
 
@@ -3702,14 +3713,12 @@ mounted(){
 6. **接收一个 props 数据（option），该数据可具有默认值，也就是默认配置，外部使用该图表组件时，可传递相关数据（通过请求获取），子组件监听该数据，当数据发生变化时，利用 this.myChart.setOption(option) 设置配置**
 7. **在组件销毁时（destroyed 钩子函数中），通过 echarts.dispose() 方法销毁 echarts 方法生成的所有实例**
 
-**补充：关于配置项的常用属性设置**
-
-**（Ⅰ）柱状图：**
+**补充：关于配置项的常用属性设置（此处主要以柱状图为例）**
 
 ```javascript
     // 柱状图的配置项
     let option = {
-      // （一）通用配置之标题配置
+      // 标题
       title: {
         text: "标题名称",
         // 标题样式
@@ -3717,12 +3726,36 @@ mounted(){
           color: "red",
         },
       },
+        
+      // 图例（特别强调：必须给每个系列设置 name 名称，否则图例不会显示，如果只有一个系列，图例只显示一个不美观，一般省略该配置，没必要显示）
+      legend: {
+        // 图例显示位置
+        top: '6%',
+        right: '10%',
+        // 如果是折线图，图例是圆圈且圆圈中间有个小横杠，可以设置隐藏
+        lineStyle: {
+          opacity: 0
+        },
+        // 图例文字颜色
+        textStyle: {
+          color: '#86909C'
+        }
+      },
+     
+      // 整体布局相对父容器的边距
+      grid: {
+        top: "5%",
+        left: "5%",
+        right: "5%",
+        bottom: "5%",
+        containLabel: true,
+      },
 
-      // （二）通用配置之提示组件配置（鼠标悬浮在柱状图上显示的提示）
+      // 鼠标悬浮在柱状图上显示的提示
       tooltip: {
-        // 触发时机
+        // 触发类型（有轴的图表使用 axis，无轴的图表如饼图用 item）
         trigger: "axis",
-        // 自定义提示内容（分别代表系列名称、类名名称、类目名称对应的值）
+        // 自定义提示内容（柱状图和折线图的 {a}、{b}、{c} 分别代表系列名称、类目名、类目名对应的值）
         formatter: "使用 {a}、{b}、{c}，来自定义提示内容",
         // 实际开发中，formatter: "使用 {a}、{b}、{c}，来自定义提示内容"，可能无法满足需求（使用该方式，会丢失前面的小图标），因此采用函数形式
         formatter: (params) => {
@@ -3743,29 +3776,35 @@ mounted(){
             return tooltipContent
           }
       },
-      
-      // （三）通用配置之图例配置（最上方的图例标识）
-      legend: {
-        // 此处要和系列名称一一对应（如果只有一种系列，图例只显示一个不美观，一般省略该配置，没必要显示）
-        data: ['系列名称（如苹果）', '系列名称（如橘子）'],
-        // 图例的形状
-        icon:'rect'
-      },
 
-      // x 轴数据，需配置类型，限定 x 轴属于类目还是值（一般为类目），如果是横向显示柱状图，则 x 轴的类型为值，对于值类型而言，只需要定义类型即可
+      // x 轴配置
       xAxis: {
         // type 类型为 "category"，表示 x 轴为类目
         type: "category",
         // 类目数据：x 轴上对应的每一个类目名称
         data: ["类目名称1", "类目名称2", "类目名称3", "类目名称4", "类目名称5", "类目名称6", "类目名称7", "类目名称8"],
+        // 部分配置和 y 轴配置一样...
       },
-      // y 轴数据，需配置类型，限定 y 轴属于类目还是值（一般为类目），如果是横向显示柱状图，则 y 轴的类型为类目，对于类目类型而言，需定义类目数据
+
+      // y 轴配置
       yAxis: {
         // type 类型为 "value"，表示 y 轴为值（尤其注意：每一个类目名称对应的值的数据，不在此处定义，而是在系列配置中定义）
         type: "value",
         // 给 y 轴设置一个轴名称
         name: "y轴的名称",
-        // 配置 y 轴刻度值（标注）
+        // 给 y 轴设置最小间隔大小为 1，可以保证坐标轴分割的刻度显示成整数（仅 y 轴 type 类型为 “value” 的时候生效）
+        minInterval: 1,
+        // 配置 y 轴线
+        axisLine: {
+          // 是否显示 y 轴线
+          show: true,
+          // y 轴线的样式
+          lineStyle: {
+            // 颜色
+            color: "#cccccc",
+          },
+        },
+        // 配置 y 轴线上的刻度值（标注）
         axisLabel: {
           // 刻度值样式
           textStyle: {
@@ -3776,19 +3815,20 @@ mounted(){
             // 此处根据 value 设置刻度值的显示内容，如 1000000 改成 100万
           }
         },
-        // 配置 y 轴刻度线
+        // 配置 y 轴每个刻度的横向分割线（仅 y 轴 type 类型为 “value” 的时候生效）
         splitLine: {
+          // 是否显示分割线
+          show: true,
+          // 分割线的样式
           lineStyle: {
-            color: '刻度线颜色',
-            // 刻度线类型（虚线）
-            type: 'dashed'
+            // 颜色
+            color: '#cccccc',
+            // 类型（实线 solid，虚线 dashed）
+            type: 'solid',
+            // 线宽度
+            width: 1
           }
         }
-      },
-        
-      // 设置布局，若 y 轴刻度内容显示不下，可设置偏移，使整体布局右移
-      grid: {
-        left: 45
       },
       
       // x 轴内容显示不下，可设置横向滚动条
@@ -3832,36 +3872,60 @@ mounted(){
 
       // 系列配置
       series: [
-        // 一个系列代表一个种类的数据（如苹果这个种类），如果图表需要显示多个系列（多个种类的柱状），增加一份系列即可（如橘子这个种类）
+        // 一个系列代表一个种类的数据，如果图表需要显示多个系列（多个种类的柱状），增加一份系列即可
         {
           // 图表类型
           type: "bar",
           // 系列名称
-          name: "系列名称（如苹果）",
-          // 标注点配置
+          name: "系列名称",
+          // 是否显示柱状底图背景
+          showBackground: true,
+          // 底图背景样式
+          backgroundStyle: {
+            color: "#F2F3F5",
+          },
+          // 每一项柱状的样式
+          itemStyle: {
+            // 柱状颜色（可利用 echarts 提供的内置方法设置渐变色）
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: "#4895ef" },
+              { offset: 1, color: "#6dd9c5" },
+            ]),
+            // 设置柱状的四个点的圆角
+            borderRadius: [5, 5, 5, 5],
+          },
+          // 如果是折线图，且带有区域颜色的情况，可以设置区域样式
+          areaStyle: {
+            // 折现区域颜色（可利用 echarts 提供的内置方法设置渐变色）
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: "rgba(33, 204, 255, 0.2)" },
+              { offset: 1, color: "rgba(33, 204, 255, 0)" },
+            ]),
+          },
+          // 标注配置（非悬浮在柱状图显示的提示，而是直接显示的标注，注意区分）
+          label: {
+            // 是否显示标注
+            show: true,
+            // 自定义提示内容（柱状图和折线图的 {a}、{b}、{c} 分别代表系列名称、类目名、类目名对应的值）
+            formatter: '使用 {a}、{b}、{c}，来自定义提示内容',
+            // 标注位置（上、左、下、右）
+            position: "top",
+          },
+          // 柱状宽度（建议使用最大宽度来限定柱状宽度，当柱状数量较多时，会自动缩小）
+          barMaxWidth: "30px",
+          // 该系列柱状图，显示在 y 轴上的一组数据（分别与每一个类目名称对应的值）
+          data: [88, 92, 63, 77, 94, 80, 72, 86],
+          // 特殊标注点：最大值和最小值
           markPoint: {
             data: [
               { name: "最大值", type: "max" },
               { name: "最小值", type: "min" },
             ],
           },
-          // 标注线配置
+          // 特殊标注线：平均值
           markLine: {
             data: [{ name: "平均值", type: "average" }],
           },
-          // 标注配置（非悬浮在柱状图显示的提示，而是直接显示的标注，注意区分）
-          label: {
-            // 是否显示标注
-            show: true,
-            // 自定义标注内容
-            formatter: '{a}{b}{c}',
-            // 标注位置
-            position: "top",
-          },
-          // 该系列柱状图的柱状宽度
-          barWidth: "50%",
-          // 该系列柱状图，显示在 y 轴上的一组数据（分别与每一个类目名称对应的值）
-          data: [88, 92, 63, 77, 94, 80, 72, 86],
         }
       ],
     };
@@ -4888,6 +4952,30 @@ export default {
 
 
 
+##### （四）实时获取直播流当前延时的方法：
+
+**在浏览器控制台选中 video 标签，右键 Copy，选择 Copy full Xpath，拿到 Xpath 路径，输入以下代码：**
+
+**解释：$x('Xpath 路径') 是浏览器开发者工具（DevTools）提供的内置函数，用于执行 XPath 表达式并返回匹配的 DOM 元素集合（数组形式）**
+
+```javascript
+const video = $x('Xpath 路径')[0]
+if (video) {
+  setInterval(() => {
+    if (video.buffered.length > 0) {
+      const latestBufferedTime = video.buffered.end(video.buffered.length - 1)
+      console.log(`直播流 | 当前播放时间: ${video.currentTime.toFixed(2)}秒 | 最新缓冲时间: ${latestBufferedTime.toFixed(2)}秒`)
+    } else {
+      console.log('缓冲数据尚未加载')
+    }
+  }, 1000)
+} else {
+  console.error('视频元素未找到')
+}
+```
+
+
+
 #### 五十二、SVG 组件，自动化进阶
 
 1. **在 @/components 目录下新建 SvgIcon 文件夹，并在其中新建 icons 文件夹，和 SvgIcon.vue 文件，以及 index.js 文件**
@@ -5088,15 +5176,15 @@ export const hotUpdateImg = (url) => {
 #### 五十六、全屏功能
 
 1. **下载依赖：yarn add screenfull**
-2. **新建全局组件，写入以下代码，并全局注册：**
+2. **新建全局组件，写入以下代码，并全局注册（依赖 svg-icon 组件）：**
 
 ```vue
 <template>
-// 组件库图标组件，根据 isFullscreen 判断显示放大图标或缩小图标
-  <a-icon
-    class="icon"
-    :type="isFullscreen ? 'fullscreen-exit' : 'fullscreen'"
-    @click="click"
+  <svg-icon
+    style="cursor: pointer"
+    :class-name="className"
+    :icon="isFullscreen ? fullscreenExitIcon : fullscreenIcon"
+    @click="toggle"
   />
 </template>
 
@@ -5105,6 +5193,20 @@ import screenfull from "screenfull";
 
 export default {
   name: "ScreenFull",
+  props: {
+    className: {
+      type: String,
+      default: "screen-full-icon",
+    },
+    fullscreenIcon: {
+      type: String,
+      default: "fullscreen",
+    },
+    fullscreenExitIcon: {
+      type: String,
+      default: "fullscreenExit",
+    },
+  },
   data() {
     return {
       isFullscreen: false,
@@ -5117,7 +5219,7 @@ export default {
     this.destroy();
   },
   methods: {
-    click() {
+    toggle() {
       if (!screenfull.isEnabled) {
         this.$message.error("浏览器不支持！");
         return false;
@@ -5141,11 +5243,14 @@ export default {
 };
 </script>
 
-<style lang="scss" scoped>
-.icon {
-  font-size: 30px;
-}
-</style>
+<style lang="scss" scoped></style>
+```
+
+3. **使用方式：**
+
+```vue
+// 自定义类名用于设置样式，通过 font-size 设置样式大小，图标来自 svg-icon 组件下存放的 svg 图标文件
+<screen-full class-name="自定义类名" fullscreen-icon="全屏图标" fullscreen-exit-icon="退出全屏图标"/>
 ```
 
 
@@ -5606,3 +5711,488 @@ export default {
 }
 ```
 
+
+
+#### 六十二、流光文字组件
+
+1. **在 @/components 目录下新建 FlowingLightText 文件夹，并在其中新建 index.vue 文件，注册为全局组件**
+2. **在 index.vue 文件中，书写以下代码（注意：此处字体包以 font-family: YouSheBiaoTiHei 举例，视情况更换）：**
+
+```vue
+<template>
+  <span :data-text="title" class="flowing-light-text">
+    {{ title }}
+  </span>
+</template>
+
+<script>
+export default {
+  name: "FlowingLightText",
+  props: {
+    title: {
+      type: String,
+      default: "",
+    },
+    background: {
+      type: String,
+      default: "orange",
+    },
+  },
+};
+</script>
+
+<style lang="scss" scoped>
+.flowing-light-text {
+  position: relative;
+  display: inline-block;
+  color: transparent;
+  background: v-bind(background);
+  background-clip: text !important;
+  font-family: YouSheBiaoTiHei;
+  font-size: 24px;
+  letter-spacing: 0.08em;
+  &::after {
+    content: attr(data-text); /* 使用data-text属性的内容 */
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-clip: text;
+    background-image: linear-gradient(
+      -55deg,
+      transparent 0%,
+      transparent 47%,
+      rgba(255, 255, 255, 0.9) 50%,
+      rgba(255, 255, 255, 0.9) 51%,
+      transparent 53%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shine 5s infinite linear;
+  }
+  /* 流光动画 */
+  @keyframes shine {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+}
+</style>
+```
+
+3. **在任意地方使用：**
+
+```vue
+<flowing-light-text :title="title" background="渐变色或普通颜色" />
+```
+
+
+
+#### 六十三、动态设置宽度和高度并被适配插件正确转换
+
+**在某些情况下，组件 props 需要接收的是宽度或者高度这种值，动态给组件内部元素设置宽高，但如果使用动态 style 进行设置，行内样式是不会被适配插件进行转换的，因此需要动态设置不同的类名代表不同的宽度和高度**
+
+1. **在 vue 文件的 style 标签中利用 scss 语法动态生成宽度和高度的类名**
+
+```scss
+$i: 0;
+@while $i<=1920 {
+  $i: $i + 1;
+  .width-#{$i} {
+    width: #{$i}px !important;
+  }
+}
+@while $i<=1080 {
+  $i: $i + 1;
+  .height-#{$i} {
+    height: #{$i}px !important;
+  }
+}
+```
+
+2. **搭配特殊的动态类名语法（模板字符串外面嵌套中括号）进行使用动态类名**
+
+```vue
+// 此处以 v-for 循环结合宽度举例，非循环的单个元素设置宽高同理
+<div v-for="col in columns" :key="col.field" :class="{ [`width-${col.width}`]: col.width }">
+  {{ col.title }}
+</div>
+```
+
+
+
+#### 六十四、大屏滚动表格组件
+
+1. **在 @/components 目录下新建 ScrollTable 文件夹，并在其中新建 index.vue 文件，注册为全局组件**
+2. **在 index.vue 文件中，书写以下代码（注意：此处无数据时的空状态和悬停提示默认以 antdesignvue 的 empty 和 a-tooltip 组件举例，视情况更换）：**
+
+```vue
+<template>
+  <div class="scroll-table">
+    <!-- 表格头部：循环渲染列，自适应同宽 -->
+    <div class="table-header">
+      <div
+        v-for="col in columns"
+        :key="col.field"
+        class="table-header-col"
+        :class="{ [`width-${col.width}`]: col.width }"
+        :style="{ flex: col.width ? 'auto' : 1 }"
+      >
+        {{ col.title }}
+      </div>
+    </div>
+    <!-- 表格主体：滚动容器 + 数据行 -->
+    <div class="table-body" ref="tableBody">
+      <div class="scroll-wrapper" ref="scrollWrapper">
+        <!-- 数据存在时渲染表格行 -->
+        <template v-if="data && data.length">
+          <div class="table-row" v-for="(item, index) in data" :key="index">
+            <div
+              v-for="col in columns"
+              :key="col.field"
+              class="table-row-col"
+              :class="{ [`width-${col.width}`]: col.width }"
+              :style="{ flex: col.width ? 'auto' : 1 }"
+            >
+              <slot v-if="col.slot" :name="col.slot" :row="item" :column="item[col.field]"></slot>
+              <a-tooltip
+                v-else
+                class="ellipsis"
+                placement="top"
+                :title="item[col.field] || '--'"
+                :get-popup-container="getPopupContainer"
+              >
+                {{ item[col.field] || '--' }}
+              </a-tooltip>
+            </div>
+          </div>
+        </template>
+        <!-- 数据为空时显示空状态 -->
+        <div v-else class="empty">
+          <slot name="empty">
+            <div class="default-empty">
+              <a-empty />
+            </div>
+          </slot>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'ScrollTable',
+  props: {
+    // 每页显示行数
+    num: {
+      type: Number,
+      default: 3
+    },
+    // 表格数据源
+    data: {
+      type: Array,
+      default: () => []
+    },
+    // 列配置（必传，需包含 title 表头名和 field 数据字段名）
+    columns: {
+      type: Array,
+      required: true,
+      validator: (value) => {
+        return value.every((col) => col.title && col.field)
+      }
+    }
+  },
+  data () {
+    return {
+      scrollTop: 0, // 当前滚动距离
+      targetScrollTop: 0, // 目标滚动距离
+      dataCount: 0, // 数据总条数
+      isMouseenter: false, // 鼠标是否移入容器
+      autoScrollTimeId: null // 自动滚动定时器ID
+    }
+  },
+  mounted () {
+    this.$nextTick(() => {
+      // 绑定鼠标事件
+      this.$refs.scrollWrapper.addEventListener('mouseenter', this.mouseenterScrollWrapper)
+      this.$refs.scrollWrapper.addEventListener('mouseleave', this.mouseleaveScrollWrapper)
+      // 绑定滚动事件
+      // this.$refs.scrollWrapper.addEventListener('scroll', () => {
+      //   if (this.isMouseenter) {
+      //     this.scrollTop = this.$refs.scrollWrapper.scrollTop
+      //   }
+      // })
+      // 绑定窗口 resize 事件
+      window.addEventListener('resize', this.listenResize)
+      // 绑定鼠标滚轮事件
+      this.$refs.scrollWrapper.addEventListener('wheel', this.handleWheel)
+    })
+  },
+  watch: {
+    data: {
+      handler (newVal) {
+        if (newVal && newVal.length > 0) {
+          this.$nextTick(() => {
+            this.stopAutoScroll() // 停止现有滚动
+            this.scrollTop = 0 // 重置滚动位置
+            this.$refs.scrollWrapper.scrollTo({ top: this.scrollTop })
+            this.dataCount = newVal.length // 更新数据总条数
+            this.openAutoScroll() // 开启新的自动滚动
+          })
+        }
+      },
+      deep: true,
+      immediate: true
+    }
+  },
+  methods: {
+    // tooltip 自动调整
+    getPopupContainer (trigger) {
+      return trigger.parentElement
+    },
+    // 开启自动滚动
+    openAutoScroll () {
+      this.autoScrollTimeId = setInterval(() => {
+        // 计算单条数据高度（容器高度 / 显示行数）
+        const rowHeight = this.$refs.scrollWrapper.offsetHeight / this.num
+        // 计算滚动临界值（总数据 - 显示行数）* 单条高度
+        const maxScrollTop = (this.dataCount - this.num) * rowHeight
+
+        // 如果当前滚动距离已经处于滚动临界值
+        if (this.scrollTop >= maxScrollTop) {
+          // 设置目标滚动距离为 0（滚动到顶部）
+          this.targetScrollTop = 0
+        } else {
+          // 设置目标滚动距离为当前滚动距离增加一行高度
+          this.targetScrollTop = this.scrollTop + rowHeight
+        }
+        // 平滑滚动
+        this.smoothScroll(this.targetScrollTop, 500)
+      }, 2000)
+    },
+    // 停止自动滚动
+    stopAutoScroll () {
+      if (this.autoScrollTimeId) {
+        clearInterval(this.autoScrollTimeId)
+        this.autoScrollTimeId = null
+      }
+    },
+    // 鼠标移入：停止滚动
+    mouseenterScrollWrapper () {
+      this.isMouseenter = true
+      this.stopAutoScroll()
+    },
+    // 鼠标移出：重启滚动
+    mouseleaveScrollWrapper () {
+      this.isMouseenter = false
+      this.openAutoScroll()
+    },
+    // 窗口 resize：重置滚动位置
+    listenResize () {
+      this.scrollTop = 0
+      this.$refs.scrollWrapper.scrollTo({ top: this.scrollTop })
+    },
+    // 鼠标滚轮事件处理函数
+    handleWheel (e) {
+      e.preventDefault() // 阻止默认滚动行为
+      if (this.isMouseenter) {
+        const rowHeight = this.$refs.scrollWrapper.offsetHeight / this.num
+        const deltaY = e.deltaY > 0 ? 1 : -1 // 根据滚轮方向确定滚动方向
+        const newScrollTop = this.scrollTop + deltaY * rowHeight
+        const maxScrollTop = (this.dataCount - this.num) * rowHeight
+        this.targetScrollTop = this.scrollTop = Math.min(Math.max(newScrollTop, 0), maxScrollTop)
+        // 执行滚动
+        this.$refs.scrollWrapper.scrollTo({
+          top: this.scrollTop,
+          behavior: 'smooth'
+        })
+      }
+    },
+    // 新增：自定义平滑滚动函数
+    smoothScroll (targetTop, duration) {
+      const startTop = this.scrollTop
+      const distance = targetTop - startTop
+      const startTime = performance.now() // 记录开始时间
+
+      const step = (currentTime) => {
+        // 计算动画进度（0-1之间）
+        const progress = Math.min((currentTime - startTime) / duration, 1)
+        // 缓动函数（先慢后快再慢，更自然）
+        const easeProgress =
+          progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2
+
+        // 计算当前滚动位置
+        const currentTop = startTop + distance * easeProgress
+        this.$refs.scrollWrapper.scrollTop = currentTop
+        this.scrollTop = currentTop
+
+        // 未完成则继续下一帧
+        if (progress < 1) {
+          requestAnimationFrame(step)
+        }
+      }
+
+      // 启动动画
+      requestAnimationFrame(step)
+    }
+  },
+  beforeDestroy () {
+    // 销毁前清理事件和定时器
+    this.stopAutoScroll()
+    if (this.$refs.scrollWrapper) {
+      this.$refs.scrollWrapper.removeEventListener('mouseenter', this.mouseenterScrollWrapper)
+      this.$refs.scrollWrapper.removeEventListener('mouseleave', this.mouseleaveScrollWrapper)
+      this.$refs.scrollWrapper.removeEventListener('wheel', this.handleWheel)
+    }
+    window.removeEventListener('resize', this.listenResize)
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+$w: 0;
+@while $w<=1920 {
+  $w: $w + 1;
+  .width-#{$w} {
+    width: #{$w}px !important;
+  }
+}
+$h: 0;
+@while $h<=1080 {
+  $h: $h + 1;
+  .height-#{$h} {
+    height: #{$h}px !important;
+  }
+}
+.scroll-table {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+
+  // 表头样式：Flex 布局实现列均分
+  .table-header {
+    width: 100%;
+    height: 44px;
+    display: flex;
+    font-size: 16px;
+    font-weight: 500;
+    background-color: #3261a3;
+    color: #ffffff;
+    box-sizing: border-box;
+
+    // 表头列：flex:1 实现自适应同宽
+    .table-header-col {
+      //flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 0 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  // 表格主体样式
+  .table-body {
+    position: relative;
+    height: calc(100% - 44px);
+    overflow: hidden;
+    box-sizing: border-box;
+
+    // 滚动容器样式
+    .scroll-wrapper {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      box-sizing: border-box;
+
+      // 滚动条美化
+      &::-webkit-scrollbar {
+        width: 2px;
+      }
+      &::-webkit-scrollbar-thumb {
+        border-radius: 8px;
+        background-color: rgba(35, 96, 212, 0.8);
+      }
+      &::-webkit-scrollbar-track {
+        background-color: transparent;
+      }
+
+      // 表格行样式：Flex 布局匹配表头
+      .table-row {
+        display: flex;
+        height: calc(100% / v-bind(num));
+        overflow: hidden;
+        line-height: 1.2;
+        color: rgba(255, 255, 255, 0.65);
+        cursor: pointer;
+        box-sizing: border-box;
+
+        // 偶数行背景色
+        &:nth-child(even) {
+          background-color: #2d4e88;
+        }
+        // 鼠标 hover 效果
+        &:hover {
+          background-color: #2d4e88;
+        }
+
+        // 表格列：flex:1 实现自适应同宽，匹配表头
+        .table-row-col {
+          //flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 5px;
+          overflow: hidden;
+          .ellipsis {
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            word-break: break-all;
+          }
+        }
+      }
+
+      // 无数据时的展示
+      .empty {
+        height: 100%;
+        .default-empty {
+          height: 100%;
+          color: #ffffff;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+      }
+    }
+  }
+}
+</style>
+```
+
+3. **使用方式（需要在固定宽高的容器内使用，滚动表格组件默认撑满父容器大小）：**
+
+```vue
+<scroll-table :num="4" :data="表格数据源" :columns="columns">
+  <template slot="自定义插槽名称" slot-scope="{ column, row }"> {{ column 为当前列数据, row 为当前行数据 }} </template>
+  <template slot="empty"> 自定义空状态 </template>
+</scroll-table>
+```
+
+**data 属性为表格数据源，num 属性为当前滚动表格一页展示的行数，empty 插槽可自定义空状态**
+
+**columns 属性为表格配置项（语法借鉴了常见组件库的表格配置语法）：**
+
+```javascript
+columns: [{ title: '表格列标题', field: '表格列字段', width: 自定义宽度（number类型，可省略）, slot: '自定义插槽' }]
+```
+
+**其中自定义插槽暴露两个参数，column 为当前列数据, row 为当前行数据** 
