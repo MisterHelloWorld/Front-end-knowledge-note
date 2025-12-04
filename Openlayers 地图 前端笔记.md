@@ -272,17 +272,22 @@ this.map.getView().fit(地理范围, {
 })
 
 // 拿到所有图层
-const layers = this.map.getLayers().getArray();
+const layers = this.map.getLayers().getArray()
 // 查找某个图层（一般在创建图层时记录该图层，若未记录，则需要在创建图层时，指定图层唯一标识，然后通过图层唯一标识进行查找）
-const 某个图层 = layers.find((layer) => layer.get("key") === "图层唯一标识");
+const 某个图层 = layers.find((layer) => layer.get("key") === "图层唯一标识")
 // 设置某个图层显示或者隐藏
 某个图层.setVisible(布尔值)
 
 
 // 查找某个图层源
 const 某个图层源 = 某个图层.getSource()
-// 查找某个要素(需要在生成要素时给每个要素指定 id 唯一标识)
-const 某个要素 = 某个图层源.getFeatureById(给要素指定的id标识)
+// 查找某个要素(需要在生成要素时，通过 ol 提供的内置方法 "要素.setId(id 唯一标识)" 给每个要素指定 id 唯一标识)
+const 某个要素 = 某个图层源.getFeatureById(id 唯一标识)
+// 拿到某个图层源下所有的要素
+const features = 某个图层源.getFeatures()
+// 查找某个要素的另一种方式(需要在生成要素时，利用自定义属性给每个要素指定 id 唯一标识，通过 find 方法对图层源下所有要素进行遍历查找)
+const 某个要素 = features.find((layer) => feature.get("id") === "id 唯一标识")
+
 // 获取某个要素的几何信息（通常用于获取线要素或者多边形要素的几何信息，用于计算线的长度或多边形的周长）
 const 几何信息 = 某个要素.getGeometry()
 // 根据线要素或者多边形要素的几何信息，计算线要素的总长度或者多边形要素的周长（需引入 getLength 方法）
@@ -331,12 +336,12 @@ const length = 某个要素.getLength(几何信息)
         const feature = new Feature({
           // 创建点要素
           geometry: new Point([经度, 纬度]),
-          // 给要素指定 id 唯一标识（实际开发中用于查找要素）
-          id: '实际数据的id',
           // 要素唯一标识，用于在点击事件或样式函数中区分当前点击的要素类别（未设置图层唯一标识无法进行区分，或同一个图层下有多个要素类别，必须设置）
           key: '要素唯一标识',
           // ...其它需要携带的信息数据
         })
+        // 给要素指定 id 唯一标识（实际开发中用于查找要素）
+        feature.setId("hanger");
         // 将该要素添加到矢量图层源中
         vectorSource.addFeature(feature)
       })
@@ -410,7 +415,7 @@ const length = 某个要素.getLength(几何信息)
               // 点、线、多边形要素通用：text 属性
               text: new Text({
                 // 文字内容
-                text: `此处是需要显示的文本`,
+                text: `此处是需要显示的文本\n用来换行`,
                 // 文字大小和字体
                 font: '14px Calibri,sans-serif',
                 // 文字颜色

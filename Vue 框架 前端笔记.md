@@ -3676,6 +3676,8 @@ import {
   TitleComponent,
   TooltipComponent,
   GridComponent,
+  LegendComponent,
+  DataZoomComponent,
   DatasetComponent,
   TransformComponent
 } from 'echarts/components';
@@ -3884,7 +3886,7 @@ mounted(){
           backgroundStyle: {
             color: "#F2F3F5",
           },
-          // 每一项柱状的样式
+          // 每一项基础样式（支持给 bar、line、pie 等所有类型的图表设置颜色、边框等样式）
           itemStyle: {
             // 柱状颜色（可利用 echarts 提供的内置方法设置渐变色）
             color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
@@ -3893,6 +3895,13 @@ mounted(){
             ]),
             // 设置柱状的四个点的圆角
             borderRadius: [5, 5, 5, 5],
+          },
+          // 如果需要对 line 类型图表设置线的样式，则需要单独用该属性进行设置）
+          lineStyle: {
+            // 虚线
+            type: 'dashed',
+            // 线宽
+            width: 2
           },
           // 如果是折线图，且带有区域颜色的情况，可以设置区域样式
           areaStyle: {
@@ -6196,3 +6205,388 @@ columns: [{ title: '表格列标题', field: '表格列字段', width: 自定义
 ```
 
 **其中自定义插槽暴露两个参数，column 为当前列数据, row 为当前行数据** 
+
+
+
+#### 六十五、文件上传组件
+
+1. **在 @/components 目录下新建 MyUpload 文件夹，并在其中新建 index.vue 文件，注册为全局组件**
+2. **在 index.vue 文件中，书写以下代码（注意：自定义展示列表样式和自定义上传样式，视情况在代码中更换）：**
+
+```vue
+<template>
+  <div class="my-upload">
+    <!--自定义展示列表样式-->
+    <div class="file-list">
+      <div class="file-list-item" v-for="(item, index) in fileList" :key="item.id">
+        <!--文件名称-->
+        <div class="file-name">
+          <span>{{ item.fileName || '未知文件' }}</span>
+        </div>
+        <!--文件信息-->
+        <div class="file-info">
+          <div class="left">
+            <span>文件大小：{{ item.fileSize ? bytesToReadableSize(item.fileSize) : '未知大小' }}</span>
+            <span>上传日期：{{ item.updateTime || '暂无' }}</span>
+          </div>
+          <div class="right">
+            <span class="link" @click="download(item.path, item.fileName, item.id)">下载</span>
+            <span class="link" @click="remove(index)">删除</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--核心上传模块-->
+    <a-upload :showUploadList="false" multiple :before-upload="beforeUpload" :customRequest="upload" :remove="remove">
+      <!--自定义上传样式-->
+      <div class="upload-btn">
+        <span>请您上传附件（图片、pdf、word等文件）</span>
+      </div>
+    </a-upload>
+  </div>
+</template>
+
+<script>
+import { upload, download } from '@/api/upload'
+export default {
+  name: 'MyUpload',
+  props: {
+    value: {
+      type: Array,
+      default: () => []
+    }
+  },
+  data () {
+    return {
+      // 临时上传列表（用于暴露给外部）
+      fileListTemp: [],
+      // 上传列表
+      fileList: []
+    }
+  },
+  watch: {
+    value: {
+      handler (newVal) {
+        this.fileList = newVal
+      },
+      deep: true
+    }
+  },
+  methods: {
+    // 比特转化为 MB，如果不足 1MB，转换为 KB
+    bytesToReadableSize (bytes) {
+      bytes = Number(bytes)
+      if (bytes < 0) {
+        throw new Error('Invalid input: must be a non-negative number')
+      }
+
+      const mb = bytes / (1024 * 1024)
+      const kb = bytes / 1024
+
+      if (mb < 1) {
+        return `${kb.toFixed(2)} KB`
+      } else {
+        return `${mb.toFixed(2)} MB`
+      }
+    },
+
+    // 选择文件前进行检查
+    beforeUpload (file) {
+      // 文件类型白名单
+      const types = []
+      // 如果不在白名单内，代表文件类型错误
+      if (!types.includes(file.type)) {
+         this.$message.error('上传文件格式错误!')
+         return false
+      }
+
+      //  检查文件大小
+      const maxSize = 5 * 1024 * 1024
+      if (maxSize < file.size) {
+        this.$message.error('文件大小最大不能超过5M')
+        return false
+      }
+      return true
+    },
+
+    // 自定义文件上传
+    async upload (e) {
+      const { file } = e
+      // 上传前开启 loading
+      this.loading = true
+      // 将文件包装成 FormData 格式
+      const formData = new FormData()
+      formData.append('file', file)
+      try {
+        const res = await upload(formData)
+        console.log('上传返回的在线地址：', res)
+
+        // 每次追加到临时上传列表前，先读取上传列表的数据
+        this.fileListTemp = [...this.fileList]
+        // 将上传返回的在线地址连同文件其它信息包装追加到临时上传列表
+        this.fileListTemp.push({
+          // 使用文件本身的数据
+          uid: file.uid,
+          fileName: file.name,
+          fileSize: file.size,
+          // 使用上传请求返回的数据
+          id: res.data.id,
+          path: res.data.path,
+          updateTime: res.data.updateTime
+        })
+        this.$emit('input', this.fileListTemp)
+      } finally {
+        // 无论成功还是失败，都关闭 loading
+        this.loading = false
+      }
+    },
+
+    // 下载已上传的文件
+    async download (url, filename, id) {
+      const res = await download(id)
+      this.$blob(res, this)
+    },
+
+    // 删除已上传的文件
+    remove (index) {
+      this.fileList.splice(index, 1)
+    }
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+.my-upload {
+  // 上传文件列表
+  .file-list {
+    margin-bottom: 10px;
+    // 列表项
+    .file-list-item {
+      height: 92px;
+      background-color: #f5f5f5;
+      border: 1px solid #d9d9d9;
+      padding: 5px 22px;
+      border-radius: 3px;
+      .file-name {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        .file-name-icon {
+          width: 20px;
+          height: 20px;
+        }
+      }
+      .file-info {
+        display: flex;
+        justify-content: space-between;
+        .left {
+          display: flex;
+          flex-direction: column;
+          line-height: 1;
+          color: #939393;
+          gap: 5px;
+          font-size: 12px;
+          padding-left: 30px;
+        }
+        .right {
+          .link {
+            color: #1890ff;
+            margin-left: 10px;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+  }
+  ::v-deep {
+    .ant-upload {
+      width: 100%;
+      .upload-btn {
+        height: 40px;
+        background-color: #f5f5f5;
+        border: 1px solid #d9d9d9;
+        border-radius: 3px;
+        color: #000000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+      }
+    }
+  }
+}
+</style>
+```
+
+3. **在任意页面使用该组件：**
+
+```vue
+// list 初始值为 []
+<my-upload v-model="list" />
+```
+
+
+
+#### 六十六、请求下拉组件
+
+1. **在 @/components 目录下新建 ApiSelect 文件夹，并在其中新建 index.vue 文件，注册为全局组件**
+2. **在 index.vue 文件中，书写以下代码（注意：下拉框依赖组件库，此处以 antdesignvue 为例，视情况在代码中更换）：**
+
+```vue
+<template>
+  <a-select
+    v-bind="$attrs"
+    v-model="currentSelect"
+    @change="change"
+    @focus="focus"
+  >
+    <a-select-option
+      v-for="item in options"
+      :key="item.value"
+      :value="item.value"
+    >
+      {{ item.label }}
+    </a-select-option>
+  </a-select>
+</template>
+
+<script>
+import _ from "lodash";
+export default {
+  name: "ApiSelect",
+  props: {
+    // 双向绑定数据
+    value: {
+      type: [String, Number, Array],
+    },
+    // 发请求需要携带的参数
+    params: {
+      type: Object,
+      default: () => ({}),
+    },
+    // 请求函数
+    fetchFunction: {
+      type: Function,
+      default: null,
+    },
+    // 拦截函数（用于对请求的结果进行改造）
+    interceptor: {
+      type: Function,
+      default: null,
+    },
+    // 是否默认选中第一个选项
+    initialFirstValue: {
+      type: Boolean,
+      default: false,
+    },
+    // 是否聚焦时重新加载配置项数据
+    isFocusInit: {
+      type: Boolean,
+      default: false,
+    },
+  },
+
+  data() {
+    return {
+      // 下拉选项
+      options: [],
+    };
+  },
+
+  computed: {
+    // 当前选中的选项
+    currentSelect: {
+      get() {
+        if (this.value !== undefined && this.value !== null) {
+          return this.value;
+        } else {
+          return this.$attrs?.mode === "multiple" ? [] : undefined;
+        }
+      },
+      set(val) {
+        this.$emit("input", val);
+      },
+    },
+  },
+
+  async mounted() {
+    // 加载下拉选项
+    await this.init();
+  },
+
+  watch: {
+    // 监听请求参数的变化
+    params(newVal, oldVal) {
+      !_.isEqual(newVal, oldVal) && this.init();
+    },
+  },
+
+  methods: {
+    // 初始化下拉
+    async init() {
+      if (!this.fetchFunction) {
+        return console.error("未配置请求函数");
+      }
+      if (!this.interceptor || typeof this.interceptor !== "function") {
+        return console.error("未配置拦截器或拦截器类型错误");
+      }
+      const res = await this.fetchFunction(this.params);
+      // 拦截器
+      this.options = this.interceptor(res.data);
+      // 根据配置默认选中第一个选项
+      if (this.initialFirstValue) {
+        this.currentSelect =
+          this.$attrs?.mode === "multiple"
+            ? [this.options[0].value]
+            : this.options[0].value;
+      }
+    },
+
+    // 下拉选项发生变化
+    change(value, option) {
+      this.$emit("change", value, option);
+    },
+
+    // 下拉框获得焦点时触发
+    async focus() {
+      if (this.isFocusInit) {
+        if (!this.fetchFunction) {
+          return console.error("未配置请求函数");
+        }
+        if (!this.interceptor || typeof this.interceptor !== "function") {
+          return console.error("未配置拦截器或拦截器类型错误");
+        }
+        const res = await this.fetchFunction(this.params);
+        // 拦截器
+        this.options = this.interceptor(res.data);
+      }
+      this.$emit("focus");
+    },
+  },
+};
+</script>
+
+<style lang="scss" scoped></style>
+```
+
+3. **在任意页面使用该组件：**
+
+```vue
+// 支持组件库中 select 所有属性，此处举例 mode、placeholder、allowClear，仅支持组件库中 select 的 change 和 focus 事件方法
+// params 请求参数，fetch-function 请求方法，interceptor 拦截器，用于对请求结果进行改造
+// isFocusInit 默认聚焦时重新获取下拉配置项，initial-first-value 默认选中第一个选项
+<api-select
+  mode="multiple"
+  :params="{ isPage: 0 }"
+  :fetch-function="getProjectList"
+  :interceptor="(data) => data.map((_) => ({ label: _.name, value: _.id }))"
+  isFocusInit
+  initial-first-value
+  placeholder="请选择"
+  @change="change"
+  @focus="focus"
+  allowClear
+/>
+```
+
