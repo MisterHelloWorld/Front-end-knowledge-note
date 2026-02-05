@@ -729,6 +729,8 @@ new Date(时间对象.getTime() + 1000)
 
 **尤其注意：该方法会将字符串以某个特定的分隔符分割为数组，但是该数组的每一项都为字符串形式，遇到数字尤其需要注意，需要使用 `字符串变量名.split('分隔符').map(Number)`**
 
+**尤其注意：如果想要按照特定的字符分割，但又想保留该字符，则将该字符转换为正则表达式，使用正则分即可**
+
 3. **把数组转化成字符串（拼接在一起）：数组名 . join（' 分隔符 '）**
 
 **注意：join 里面的参数就是转换好的字符串的分隔符，不传递参数，默认以逗号隔开，一般会利用循环将字符串形式的标签依次追加到同一个数组变量中，然后使用 join 方法将这个数组转换成字符串，通常会使用 join（' '）实现无缝拼接**
@@ -765,9 +767,11 @@ new Date(时间对象.getTime() + 1000)
 
 ### replace 方法的进阶使用：正则替换最终版
 
-**（1）基础用法：字符串变量 . replace (需要被替换的字符串，新字符串)**
+**（1）基础用法：字符串变量 . replace (需要被替换的字符段落，新字符段落)**
 
-**第一个参数，如果是普通字符串，默认只会替换字符串中第一个与之匹配的内容，后面的内容不会再替换**
+**尤其注意（强调）：replace 方法不会修改原数据，会返回一个新字符串**
+
+**第一个参数，如果是普通的字符段落参数，默认只会替换字符串中第一个与之匹配的内容，后面的内容不会再替换，若想全局替换多个，参见（2）进阶用法**
 
 
 
@@ -777,39 +781,45 @@ new Date(时间对象.getTime() + 1000)
 
 **因此可以采取正则替换的最终解决方案：**
 
-1. **利用 RegExp 构造函数，将某个特定字符或者某个字符串形式的正则文本（可以是变量形式）转换成一个正则对象**
+1. **利用 RegExp 构造函数，将某个特定字符段落或者字符串形式的正则文本（可以是变量形式）转换成一个正则表达式（又叫正则对象）**
 
 ```javascript
-// 第一个参数是被替换的内容，这里可以书写变量，第二个参数是匹配模式，即全局匹配多个并忽略大小写
-const reg = new RegExp(某个特定字符或者某个字符串形式的正则文本, 'gi')
+// 第一个参数是被替换的内容（可以书写变量），第二个参数是匹配模式（全局匹配多个并忽略大小写）
+// 如果是多个特定字符串段落，则使用 | 拼接成一个新的字符串（如 "昨天|今天|明天"）
+const reg = new RegExp(特定字符段落, 'gi')
+const reg = new RegExp(字符串形式的正则文本, 'gi')
 ```
 
-2. **将 reg 作为整个被替换的内容，供 replace 方法使用**
+**尤其注意：如果本身就是正则表达式，则无需使用 RegExp 方法进行转换，直接给 replace 方法使即可**
+
+2. **将 reg（转换后的正则表达式）作为整个被替换的内容，供 replace 方法使用**
 
 ```javascript
-// match 为当前被匹配到的字符
+// match 为当前被匹配到的字符，此处 return 的新内容，仅修改被匹配到的部分
 字符串变量名.replace(reg, (match) => { return 新内容（模板字符串搭配 match 使用） })
 ```
 
 **常见方法：在 vue 中的 methods 里定义高亮方法（不是过滤器），配合 v-html 使用替换特定的字符**
 
 ```javascript
-// 高亮数字
+// 高亮数字（常用）
 highlightNumber (str) {
-  // 字符串形式的正则文本（匹配数字）
-  const pattern = '\\d+'
-  // 转换为正则对象
-  const reg = new RegExp(pattern, 'gi')
+  // 转换为正则表达式（仅匹配数字）
+  const reg = new RegExp('\\d+', 'gi')
   // 进行正则替换，并返回新的字符串
   return str.replace(reg, (match) => {
     return `<span style="color: red;">${match}</span>`
   })
 }
 
-// 高亮特定的关键词
-highlightNumber (str, keyWords) {
-  // 转换为正则对象
-  const reg = new RegExp(keyWords, 'gi')
+// 高亮多个特定的关键词（keyWords 是数组形式的关键词列表）
+const highlightKeyWords = (str, keyWords) => {
+  // 无内容或者无关键词，则原内容返回
+  if (!str || !keyWords) return str
+  // 统一转为数组格式，兼容 字符串/数组 两种传参
+  const keyArr = Array.isArray(keyWords) ? keyWords : [keyWords]
+  // 将多个关键词拼接，并转换为正则表达式
+  const reg = new RegExp(keyArr.join('|'), 'gi')
   // 进行正则替换，并返回新的字符串
   return str.replace(reg, (match) => {
     return `<span style="color: red;">${match}</span>`

@@ -980,10 +980,10 @@ Vue.use(Component)
   props: {
     // 简单写法：props:["父组件传递的自定义变量名"]
     // 进阶写法：
-    // 1. props:{ 父组件传递的自定义变量名: Number | String | Object | Array | Boolean（只限制数据类型）}
+    // 1. props:{ 父组件传递的自定义变量名: Number、String、Object、Array、Boolean（只限制数据类型）}
     // 2. props:{ 父组件传递的自定义变量名:{ 多个配置选项 } }
     父组件传递的自定义变量名: {
-      type: Number | String | Object | Array | Boolean (限制数据类型，数据类型校验）,
+      type: 单个数据类型 或者 [数据类型1, 数据类型2]（数据类型举例：Number、String、Object、Array、Boolean） ,
       default:默认内容,
       required: true/false, // 必填项，外部使用该组件，必须给该组件使用当前定义好的的变量名（即：父组件传递的自定义变量名）
       
@@ -1395,7 +1395,7 @@ default: () => ([] 或 {})
 
 
 
-##### （三）组件插槽的使用（用于自定义组件内部标签及数据）
+##### （三）组件插槽的使用
 
 1. **组件内部使用 slot 标签，定义插槽：**
 
@@ -1408,6 +1408,8 @@ default: () => ([] 或 {})
 
    **注意：定义插槽时，若不写自定义插槽名，则默认为匿名插槽（相当于 name 是 default，可省略），匿名插槽（默认插槽）和具名插槽可以同时存在，且默认插槽常显示主体内容部分**
 
+   **补充：判断当前插槽是否传入内容（被使用），可使用`$scopedSlots.自定义插槽名`进行判断**
+
 2. **在使用组件时，可利用插槽插入自定义内容及数据：**
 
    ```html
@@ -1416,12 +1418,11 @@ default: () => ([] 或 {})
    <template v-slot:插槽名=“自定义接收名（用于接收组件内部该插槽传来的数据）”> 自定义内容 </template>    
    </组件标签名>
    ```
-```
-   
+
 **尤其注意：当组件内部插槽暴露了多个数据时，可以利用对象解构的方式接收数据（v-slot:插槽名 = “{ 暴露出来的属性名称1, 暴露出来的属性名称2 }”）**
-   
+
    **尤其注意：当如 v-slot：插槽名 和 v-slot = " 自定义接收名 " 同时存在，必须连写：v-slot：插槽名 = " 自定义接收名 " 或 #插槽名 = “ 自定义接收名 ”**
-   
+
 3. **插槽的进阶使用：**
 
    **通常情况下，可以考虑将组件中涉及到操作父组件中数据的功能模块使用插槽代替，这样可以在父组件中使用该插槽，插入功能性模块，便于直接操作父组件中的数据（原理：涉及到插槽的作用域，虽然功能性模块作为内容渲染在子组件里，但实际写在父组件这个文件中，因此它的作用域范围也只对父组件生效，只会调用父组件里的事件，使用父组件里的数据）**
@@ -1456,7 +1457,7 @@ default: () => ([] 或 {})
        处理程序（例子：img标签的图片加载错误会自动触发onerror事件，给该img标签绑定该事件，会在图片加载错误时自动触发该事件函数）
      }
    })
-```
+   ```
 
 3. **在 main.js 文件中直接引入（执行）src/directives/index.js 文件即可：import '@/directives'**
 
@@ -1675,6 +1676,18 @@ component：() => import ( ' 组件路径 ' )
 
 ```html
 <span @click="$router.push('/跳转的路由路径')">导航名</span>
+```
+
+**额外补充：如果需要在跳转路由时，新开一个标签页，可在 main.js 文件中全局挂载一个方法**
+
+```javascript
+Vue.prototype.$newTab = function(route) {
+  const { href } = router.resolve(route);
+  window.open(href, '_blank');
+};
+
+// 使用方式
+this.$newTab(与路由使用方式保持一致，可直接填写路由路径，也可以使用完整的配置项形式);
 ```
 
 
@@ -3720,12 +3733,14 @@ mounted(){
 ```javascript
     // 柱状图的配置项
     let option = {
-      // 标题
+      // 左上角标题（一般用作单位）
       title: {
-        text: "标题名称",
+        text: "左上角标题名称",
         // 标题样式
         textStyle: {
           color: "red",
+          fontWeight: 'normal',
+          fontSize: 14
         },
       },
         
@@ -3757,6 +3772,15 @@ mounted(){
       tooltip: {
         // 触发类型（有轴的图表使用 axis，无轴的图表如饼图用 item）
         trigger: "axis",
+        // 背景颜色
+        backgroundColor: 'rgba(10, 49, 77, 0.65)',
+        // 边框颜色
+        borderColor: 'transparent',
+        // 文字样式
+        textStyle: {
+          color: '#ffffff',
+          fontSize: 14
+        },
         // 自定义提示内容（柱状图和折线图的 {a}、{b}、{c} 分别代表系列名称、类目名、类目名对应的值）
         formatter: "使用 {a}、{b}、{c}，来自定义提示内容",
         // 实际开发中，formatter: "使用 {a}、{b}、{c}，来自定义提示内容"，可能无法满足需求（使用该方式，会丢失前面的小图标），因此采用函数形式
@@ -3887,6 +3911,7 @@ mounted(){
             color: "#F2F3F5",
           },
           // 每一项基础样式（支持给 bar、line、pie 等所有类型的图表设置颜色、边框等样式）
+          // 尤其注意：虽然该方式可以给 pie 类型图表设置颜色，但正常来说饼图的每一块颜色都不同，因此不会在此给每块区域设置同一个颜色（详细设置见 data）
           itemStyle: {
             // 柱状颜色（可利用 echarts 提供的内置方法设置渐变色）
             color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
@@ -3922,8 +3947,14 @@ mounted(){
           },
           // 柱状宽度（建议使用最大宽度来限定柱状宽度，当柱状数量较多时，会自动缩小）
           barMaxWidth: "30px",
-          // 该系列柱状图，显示在 y 轴上的一组数据（分别与每一个类目名称对应的值）
+          // 该系列柱状图（折线图同理），显示在 y 轴上的一组数据（分别与每一个类目名称对应的值）
           data: [88, 92, 63, 77, 94, 80, 72, 86],
+          // 如果是饼图，可以通过数据来指定颜色
+          data: [
+              { name: '区域1', value: 值, itemStyle: { color: '颜色1' } },
+              { name: '区域2', value: 值, itemStyle: { color: '颜色2' } },
+              { name: '区域3', value: 值, itemStyle: { color: '颜色3' } },
+          ],
           // 特殊标注点：最大值和最小值
           markPoint: {
             data: [
@@ -5534,19 +5565,28 @@ export default {
     }
   },
 
+  data() {
+    return {
+      // 是否处于拖拽移动状态
+      isMoved: false,
+      // 用于存储点击事件阻止函数
+      clickPreventer: null
+    }
+  },
+
   computed: {
     // 计算属性拦截（实际位置，主要改变该值的变化来操控容器位置的变化）
     position: {
-      get () {
+      get() {
         return this.value
       },
-      set (val) {
+      set(val) {
         this.$emit('input', val)
       }
     },
 
     // 计算定位样式（主要将实际位置转换为具有px单位的值，用于给行内样式使用，同时过滤掉无效属性）
-    computedStyle () {
+    computedStyle() {
       // 筛选实际位置对象，仅保留属于四个定位方向的属性，且值为 number 类型的
       const filterObj = _.pickBy(
         this.position,
@@ -5561,13 +5601,18 @@ export default {
     }
   },
 
-  mounted () {
-    // 如果指定了拖拽触发的 DOM
-    if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
-      // 在指定 DOM 添加拖拽事件
-      this.$refs.dragMoveRef.querySelector('[data-trigger]').addEventListener('mousedown', this.onMousedown)
-      // 鼠标光标变成手掌松开形状
-      this.$refs.dragMoveRef.querySelector('[data-trigger]').style.cursor = 'grab'
+  mounted() {
+    // 获取所有指定了拖拽触发的 DOM（带有 data-trigger 属性的元素）
+    const triggerElements = this.$refs.dragMoveRef.querySelectorAll('[data-trigger]')
+
+    if (triggerElements && triggerElements.length > 0) {
+      // 遍历所有触发元素，绑定事件并设置样式
+      triggerElements.forEach(el => {
+        // 在指定 DOM 添加拖拽事件
+        el.addEventListener('mousedown', this.onMousedown)
+        // 鼠标光标变成手掌松开形状
+        el.style.cursor = 'grab'
+      })
     } else {
       // 否则整个容器都可以拖拽
       this.$refs.dragMoveRef.addEventListener('mousedown', this.onMousedown)
@@ -5577,17 +5622,21 @@ export default {
   },
   methods: {
     // 鼠标按下触发
-    onMousedown (e) {
+    onMousedown(e) {
       console.log('鼠标按下了：', e)
-      // 如果指定了拖拽触发的 DOM，则在鼠标按下时，将指定 DOM 的鼠标光标变成手掌抓取形状
-      if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
-        this.$refs.dragMoveRef.querySelector('[data-trigger]').style.cursor = 'grabbing'
+      // 重置当前是否处于拖拽移动的状态
+      this.isMoved = false
+      // 将当前指定 DOM 的鼠标光标变成手掌抓取形状
+      if (e.currentTarget) {
+        e.currentTarget.style.cursor = 'grabbing'
       } else {
         // 否则将整个容器的鼠标光标变成手掌抓取形状
         this.$refs.dragMoveRef.style.cursor = 'grabbing'
       }
       // 阻止冒泡
       e.stopPropagation()
+      // 阻止默认行为
+      e.preventDefault()
       // 记录当前鼠标相对于拖拽移动容器点击的位置
       this.recordPosition = {
         x: e.clientX - this.$refs.dragMoveRef.getBoundingClientRect().left,
@@ -5600,8 +5649,11 @@ export default {
     },
 
     // 鼠标移动事件
-    onMousemove (e) {
+    onMousemove(e) {
       console.log('鼠标在整个视口的位置：', e.clientX, e.clientY)
+
+      // 标记当前处于拖拽移动状态
+      this.isMoved = true
 
       // 拿到拖拽移动容器的父容器的相关信息
       const boundingRect = this.$refs.dragMoveRef.parentNode.getBoundingClientRect()
@@ -5631,10 +5683,31 @@ export default {
     },
 
     // 鼠标松开事件
-    onMouseup (e) {
-      // 如果指定了拖拽触发的 DOM，则在鼠标按下时，将指定 DOM 的鼠标光标变成手掌松开形状
-      if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
-        this.$refs.dragMoveRef.querySelector('[data-trigger]').style.cursor = 'grab'
+    onMouseup(e) {
+      // 如果当前是拖拽移动状态，手动阻止后续的click事件
+      if (this.isMoved) {
+        // 创建点击事件阻止函数
+        this.clickPreventer = clickEvent => {
+          clickEvent.preventDefault()
+          clickEvent.stopPropagation()
+          clickEvent.stopImmediatePropagation()
+          // 只阻止一次，然后移除监听
+          document.removeEventListener('click', this.clickPreventer, true)
+          this.clickPreventer = null
+        }
+        // 捕获阶段阻止click事件（优先于冒泡）
+        document.addEventListener('click', this.clickPreventer, true)
+      }
+
+      // 获取所有指定了拖拽触发的 DOM（带有 data-trigger 属性的元素）
+      const triggerElements = this.$refs.dragMoveRef.querySelectorAll('[data-trigger]')
+
+      if (triggerElements && triggerElements.length > 0) {
+        // 遍历所有触发元素，绑定事件并设置样式
+        triggerElements.forEach(el => {
+          // 鼠标光标变成手掌松开形状
+          el.style.cursor = 'grab'
+        })
       } else {
         // 否则将整个容器的鼠标光标变成手掌松开形状
         this.$refs.dragMoveRef.style.cursor = 'grab'
@@ -5646,13 +5719,25 @@ export default {
     }
   },
 
-  beforeDestroy () {
-    // 如果指定了拖拽触发的 DOM，则移除指定 DOM 绑定的鼠标按下事件
-    if (this.$refs.dragMoveRef.querySelector('[data-trigger]')) {
-      this.$refs.dragMoveRef.querySelector('[data-trigger]').removeEventListener('mousedown', this.onMousedown)
+  beforeDestroy() {
+    // 清理残留的点击阻止函数
+    if (this.clickPreventer) {
+      document.removeEventListener('click', this.clickPreventer, true)
     }
-    // 移除鼠标按下事件
-    this.$refs.dragMoveRef.removeEventListener('mousedown', this.onMousedown)
+
+    // 获取所有指定了拖拽触发的 DOM（带有 data-trigger 属性的元素）
+    const triggerElements = this.$refs.dragMoveRef.querySelectorAll('[data-trigger]')
+
+    if (triggerElements && triggerElements.length > 0) {
+      // 遍历所有触发元素
+      triggerElements.forEach(el => {
+        // 移除指定 DOM 绑定的鼠标按下事件
+        el.removeEventListener('mousedown', this.onMousedown)
+      })
+    } else {
+      // 否则移除整个容器的拖拽事件
+      this.$refs.dragMoveRef.removeEventListener('mousedown', this.onMousedown)
+    }
   }
 }
 </script>
@@ -5859,7 +5944,7 @@ $i: 0;
       <div class="scroll-wrapper" ref="scrollWrapper">
         <!-- 数据存在时渲染表格行 -->
         <template v-if="data && data.length">
-          <div class="table-row" v-for="(item, index) in data" :key="index">
+          <div class="table-row" v-for="(item, index) in data" :key="index" @click="$emit('rowClick', item)">
             <div
               v-for="col in columns"
               :key="col.field"
@@ -5867,15 +5952,27 @@ $i: 0;
               :class="{ [`width-${col.width}`]: col.width }"
               :style="{ flex: col.width ? 'auto' : 1 }"
             >
-              <slot v-if="col.slot" :name="col.slot" :row="item" :column="item[col.field]"></slot>
+              <slot
+                v-if="col.slot && $scopedSlots[col.slot]"
+                :name="col.slot"
+                :row="item"
+                :column="item[col.field]"
+                :index="index"
+              ></slot>
               <a-tooltip
                 v-else
                 class="ellipsis"
                 placement="top"
-                :title="item[col.field] || '--'"
+                :title="(col.customRender && col.customRender(item[col.field], item)) || item[col.field] || '--'"
                 :get-popup-container="getPopupContainer"
               >
-                {{ item[col.field] || '--' }}
+                <!--如果自定义渲染函数存在-->
+                <template v-if="col.customRender">
+                  {{ col.customRender(item[col.field], item) }}
+                </template>
+                <template v-else>
+                  {{ item[col.field] || '--' }}
+                </template>
               </a-tooltip>
             </div>
           </div>
@@ -5921,8 +6018,7 @@ export default {
       scrollTop: 0, // 当前滚动距离
       targetScrollTop: 0, // 目标滚动距离
       dataCount: 0, // 数据总条数
-      isMouseenter: false, // 鼠标是否移入容器
-      autoScrollTimeId: null // 自动滚动定时器ID
+      isMouseenter: false // 鼠标是否移入容器
     }
   },
   mounted () {
@@ -5930,12 +6026,6 @@ export default {
       // 绑定鼠标事件
       this.$refs.scrollWrapper.addEventListener('mouseenter', this.mouseenterScrollWrapper)
       this.$refs.scrollWrapper.addEventListener('mouseleave', this.mouseleaveScrollWrapper)
-      // 绑定滚动事件
-      // this.$refs.scrollWrapper.addEventListener('scroll', () => {
-      //   if (this.isMouseenter) {
-      //     this.scrollTop = this.$refs.scrollWrapper.scrollTop
-      //   }
-      // })
       // 绑定窗口 resize 事件
       window.addEventListener('resize', this.listenResize)
       // 绑定鼠标滚轮事件
@@ -5944,10 +6034,10 @@ export default {
   },
   watch: {
     data: {
-      handler (newVal) {
-        if (newVal && newVal.length > 0) {
+      handler (newVal, oldVal) {
+        if (newVal && newVal.length > 0 && JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
           this.$nextTick(() => {
-            this.stopAutoScroll() // 停止现有滚动
+            this.autoScrollTimeId && clearInterval(this.autoScrollTimeId) // 停止现有滚动
             this.scrollTop = 0 // 重置滚动位置
             this.$refs.scrollWrapper.scrollTo({ top: this.scrollTop })
             this.dataCount = newVal.length // 更新数据总条数
@@ -5967,6 +6057,8 @@ export default {
     // 开启自动滚动
     openAutoScroll () {
       this.autoScrollTimeId = setInterval(() => {
+        // 如果鼠标处于移入状态，则不执行滚动
+        if (this.isMouseenter) return
         // 计算单条数据高度（容器高度 / 显示行数）
         const rowHeight = this.$refs.scrollWrapper.offsetHeight / this.num
         // 计算滚动临界值（总数据 - 显示行数）* 单条高度
@@ -5984,22 +6076,13 @@ export default {
         this.smoothScroll(this.targetScrollTop, 500)
       }, 2000)
     },
-    // 停止自动滚动
-    stopAutoScroll () {
-      if (this.autoScrollTimeId) {
-        clearInterval(this.autoScrollTimeId)
-        this.autoScrollTimeId = null
-      }
-    },
     // 鼠标移入：停止滚动
     mouseenterScrollWrapper () {
       this.isMouseenter = true
-      this.stopAutoScroll()
     },
     // 鼠标移出：重启滚动
     mouseleaveScrollWrapper () {
       this.isMouseenter = false
-      this.openAutoScroll()
     },
     // 窗口 resize：重置滚动位置
     listenResize () {
@@ -6052,7 +6135,7 @@ export default {
   },
   beforeDestroy () {
     // 销毁前清理事件和定时器
-    this.stopAutoScroll()
+    this.autoScrollTimeId && clearInterval(this.autoScrollTimeId)
     if (this.$refs.scrollWrapper) {
       this.$refs.scrollWrapper.removeEventListener('mouseenter', this.mouseenterScrollWrapper)
       this.$refs.scrollWrapper.removeEventListener('mouseleave', this.mouseleaveScrollWrapper)
@@ -6090,7 +6173,6 @@ $h: 0;
     display: flex;
     font-size: 16px;
     font-weight: 500;
-    background-color: #3261a3;
     color: #ffffff;
     box-sizing: border-box;
 
@@ -6141,17 +6223,17 @@ $h: 0;
         height: calc(100% / v-bind(num));
         overflow: hidden;
         line-height: 1.2;
-        color: rgba(255, 255, 255, 0.65);
+        color: #ffffff;
         cursor: pointer;
         box-sizing: border-box;
 
         // 偶数行背景色
         &:nth-child(even) {
-          background-color: #2d4e88;
+          //background-color: #2d4e88;
         }
         // 鼠标 hover 效果
         &:hover {
-          background-color: #2d4e88;
+          //background-color: #2d4e88;
         }
 
         // 表格列：flex:1 实现自适应同宽，匹配表头
@@ -6201,7 +6283,13 @@ $h: 0;
 **columns 属性为表格配置项（语法借鉴了常见组件库的表格配置语法）：**
 
 ```javascript
-columns: [{ title: '表格列标题', field: '表格列字段', width: 自定义宽度（number类型，可省略）, slot: '自定义插槽' }]
+columns: [{
+          title: '表格列标题',
+          field: '表格列字段',
+          width: 自定义宽度（number类型，可省略）,
+          slot: '自定义插槽',
+          customRender: (column, row) => 自定义内容
+        },
 ```
 
 **其中自定义插槽暴露两个参数，column 为当前列数据, row 为当前行数据** 

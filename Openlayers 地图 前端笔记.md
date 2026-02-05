@@ -13,7 +13,7 @@
 ```vue
 <template>
   <!-- 地图容器 -->
-  <div id="map"></div>
+  <div id="map" ref="map"></div>
 </template>
 
 <script>
@@ -55,6 +55,8 @@ export default {
             url: "/地图资源的访问路径/{z}/{x}/{y}.png",
             // 离线地图资源，选择平面投影（投影坐标系，也就是墨卡托坐标系，编号为 EPSG:3857）
             projection: "EPSG:3857",
+            // 若想对地图进行截图，openlayers 默认不允许跨域访问图层，需要在此配置
+            crossOrigin: "anonymous",
             wrapX: false,
           }),
           className: "offlineMap",
@@ -71,6 +73,8 @@ export default {
             url: "http://t0.tianditu.gov.cn/DataServer?T=vec_c&x={x}&y={y}&l={z}&tk=ca0d54bde130e0e4984b58c8fad41a44",
             // 在线地图资源，选择经纬度投影（地理坐标系，也就是 WGS84 坐标系，编号为 EPSG:4326）
             projection: "EPSG:4326",
+            // 若想对地图进行截图，openlayers 默认不允许跨域访问图层，需要在此配置
+            crossOrigin: "anonymous",
             wrapX: false,
             // 若某些在线地图最大层级只到某个级别，想要继续放大，会变空白的情况下，使用如下两行代码，用于指定在多少层级下进行插补画面
             maxZoom: 指定层级（一般是在线地图支持的最大层级）,
@@ -86,6 +90,8 @@ export default {
             url: "http://t0.tianditu.gov.cn/DataServer?T=cva_c&x={x}&y={y}&l={z}&tk=ca0d54bde130e0e4984b58c8fad41a44",
             // 在线地图资源，选择经纬度投影（地理坐标系，也就是 WGS84 坐标系，编号为 EPSG:4326）
             projection: "EPSG:4326",
+            // 若想对地图进行截图，openlayers 默认不允许跨域访问图层，需要在此配置
+            crossOrigin: "anonymous",
             wrapX: false,
             // 若某些在线地图最大层级只到某个级别，想要继续放大，会变空白的情况下，使用如下两行代码，用于指定在多少层级下进行插补画面
             maxZoom: 指定层级（一般是在线地图支持的最大层级）,
@@ -122,8 +128,8 @@ export default {
           // 最小层级
           minZoom: 3,
         }),
-        // 让 id 为 map 的 div 作为地图的容器
-        target: "map",
+        // 地图容器目标（不选择 id 的原因：当同一个页面存在多个基础地图组件，唯一 id 会互相影响）
+        target: this.$refs.map,
         // 设置地图控件是否隐藏（如果需要隐藏的话）
         controls: defaults({
           // 右下角的地图信息控件
@@ -330,6 +336,8 @@ const length = 某个要素.getLength(几何信息)
         source: vectorSource
       })
 
+      // 性能优化：将所有要素保存下来，后续一次性添加到矢量图层源中
+      const featureList = []
       // 遍历数据，创建要素
       数据列表.forEach((item) => {
         // 创建一个要素
@@ -342,9 +350,13 @@ const length = 某个要素.getLength(几何信息)
         })
         // 给要素指定 id 唯一标识（实际开发中用于查找要素）
         feature.setId("hanger");
-        // 将该要素添加到矢量图层源中
-        vectorSource.addFeature(feature)
+        // 将该要素添加到矢量图层源中（如果要素数量较多，则性能较差）
+        // vectorSource.addFeature(feature)
+        // 暂存该要素
+        featureList.push(feature)
       })
+      // 将保存下来的要素列表，使用 addFeatures 方法一次性添加到矢量图层源中
+      vectorSource.addFeatures(featureList)
 
       // 创建矢量图层
       const 图层名称 = new VectorLayer({
@@ -545,12 +557,12 @@ export default {
       map.on("click", (e) => {
         console.log("当前鼠标点击位置的经纬度：", e.coordinate);
         // 拿到当前点击的要素所属的图层
-        const layer = map.forEachFeatureAtPixel(evt.pixel, (feature, layer) => {
+        const layer = map.forEachFeatureAtPixel(e.pixel, (feature, layer) => {
           // 返回当前要素
           return layer
         })
         // 拿到当前点击的要素
-        const feature = map.forEachFeatureAtPixel(evt.pixel, (feature) => {
+        const feature = map.forEachFeatureAtPixel(e.pixel, (feature) => {
           // 返回当前要素
           return feature
         })
@@ -566,6 +578,25 @@ export default {
               const currentFeatureInfo = feature.getProperties()
               if (currentFeatureInfo.key === '要素唯一标识') {
                 // 执行某些操作...
+                // 第一次创建信息弹窗覆盖物，并初始化设置一次位置
+                if (!this.infoModal) {
+                  this.infoModal = new Overlay({
+                    // 要素的显示位置（经纬度）
+                    position: [data.longitude, data.latitude],
+                    // 与自定义信息弹窗 DOM 容器进行绑定
+                    element: document.getElementById('info-modal'),
+                    // 位置参考
+                    positioning: 'bottom-center',
+                    // 偏移
+                    offset: [0, -200]
+                  })
+                  this.map.addOverlay(this.infoModal)
+                } else {
+                  // 如果存在信息弹窗覆盖物,则更新位置即可
+                  this.infoModal.setPosition([data.longitude, data.latitude])
+                }
+                // 显示点位信息弹窗
+                document.getElementById('info-modal').style.display = 'block'
               }
             }
           }

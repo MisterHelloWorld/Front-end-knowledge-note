@@ -982,7 +982,11 @@ background-image: linear-gradient(
 
 **注意：定位元素受overflow：hidden；（超出部分隐藏）管辖**
 
-**拓展：z-index: 1；增加定位等级，数字越高，等级越高，处于上层，但尤其注意，如果两个相邻父容器的定位层级已经确定，其中层级较低的父容器内的子元素，即便定位层级远远大于另一个父容器的定位层级，也无效，父级的层级决定了子元素层级的上限**
+**z-index: 层级：层级数字越高，等级越高，处于上层**
+
+**尤其注意（父层定生死，子层定内部）：父级的堆叠上下文层级，是「天花板」，子元素的层级，永远只在「父级的堆叠上下文内部」生效，也就是说，当两个相邻父容器的定位层级已经确定，其中层级较低的父容器内的子元素，即使定位层级远远大于另一个父容器中子元素的定位层级，也是无效的，父级的层级决定了子元素层级的上限，子元素的层级再高，也永远无法穿透 / 超越父级的层级限制**
+
+**补充：固定定位的层级，会和所有定位元素进行比较，即便某个绝对定位和其毫无层级关系，也会有定位层级的影响，因此需要特别注意，当页面中存在固定定位的时候（如组件库的弹窗组件），其它绝对定位元素的层级设置最好不要大过该固定定位的层级**
 
 
 
@@ -1070,9 +1074,45 @@ box-shadow: 0px 0px 0px 颜色;
 2. **新建 fonts.scss 文件，并在其中声明字体，然后在 main.js 中全局引入该 fonts.scss 文件**
 
 ```scss
+// 单个字体文件
 @font-face {
   font-family: '自定义字体名称';
   src: url('../assets/fonts/字体文件.ttf') format('truetype');
+}
+
+// 同一字体，多种字重的字体文件（该字体下包含了完整的 300-800 字重的字体文件）
+@font-face {
+  font-family: '相同族名';
+  src: url('../assets/fonts/字体文件-Light.ttf') format('truetype');
+  font-weight: 300;
+}
+@font-face {
+  font-family: '相同族名';
+  src: url('../assets/fonts/字体文件-Regular.ttf') format('truetype');
+  // 同 font-weight: normal;
+  font-weight: 400;
+}
+@font-face {
+  font-family: '相同族名';
+  src: url('../assets/fonts/字体文件-Medium.ttf') format('truetype');
+  font-weight: 500;
+}
+@font-face {
+  font-family: '相同族名';
+  src: url('../assets/fonts/字体文件-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+}
+@font-face {
+  font-family: '相同族名';
+  src: url('../assets/fonts/字体文件-Bold.ttf') format('truetype');
+  // 同 font-weight: bold;
+  font-weight: 700;
+}
+@font-face {
+  font-family: '相同族名';
+  src: url('../assets/fonts/字体文件-ExtraBold.ttf') format('truetype');
+  // 同 font-weight: normal;
+  font-weight: 800;
 }
 ```
 
