@@ -5293,6 +5293,8 @@ export default {
 <screen-full class-name="自定义类名" fullscreen-icon="全屏图标" fullscreen-exit-icon="退出全屏图标"/>
 ```
 
+**补充：如果想全屏某个指定容器（如自定义播放器），则参考如上形式，切换方法重传入指定 DOM 即可，screenfull.toggle(指定DOM);**
+
 
 
 #### 五十七、检验数据是否为有效数据

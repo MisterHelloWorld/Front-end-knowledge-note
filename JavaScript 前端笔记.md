@@ -1717,6 +1717,28 @@ if (error.response?.status === xxx) { 执行某些操作 }
 
 
 
+### 关于常用 BOM 对象属性详解
+
+#### （一）鼠标位置
+
+**明确概念（极其重要，否则属性容易产生混淆）：鼠标位置只能通过鼠标事件获取，且给哪个元素绑定的鼠标事件，哪个元素就是目标元素（绑定需要明确）**
+
+1. **offsetX 和 offsetY：拿到的是鼠标相对于目标元素的位置（目标元素不同，拿到的值也不同，需要特别注意）**
+2. **clientX（等价于 x） 和 clientY（等价于 y）：拿到的是鼠标相对于视口的位置**
+3. **pageX 和 pageY：拿到的是整个文档（网页，包含滚动出去的内容）的位置**
+
+#### （二）DOM 元素的位置和尺寸
+
+**明确概念：DOM 元素的位置和尺寸相关信息，是通过拿到 DOM 对象，访问其内部属性（无需绑定事件）**
+
+1. **offsetWidth 和 offsetHeight：拿到的是该 dom 元素的宽度和高度（包含边距和边框）**
+2. **offsetLeft 和 offsetTop：拿到的是该 dom 元素相对于父级定位容器的位置（注意父级容器需要具备定位属性）**
+3. **const rect = dom 对象.getBoundingClientRect()：此方法可以拿到 dom 的一些视口信息（rect.width、rect.height、rect.left/right/top/bottom）**
+
+**注意：getBoundingClientRect 方法获取的上、下、左、右偏移位置，是相对于视口的位置（慎用）**
+
+
+
 ### jQuery 的基本语法规范及内置方法的使用
 
 **jQuery 本质上是一个 js 文件，封装了很多 js 原生代码，是一个DOM对象库，使用前必须引入 jQuery.js 文件**
