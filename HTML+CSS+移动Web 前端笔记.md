@@ -1111,7 +1111,7 @@ box-shadow: 0px 0px 0px 颜色;
 @font-face {
   font-family: '相同族名';
   src: url('../assets/fonts/字体文件-ExtraBold.ttf') format('truetype');
-  // 同 font-weight: normal;
+  // 同 font-weight: bold;
   font-weight: 800;
 }
 ```

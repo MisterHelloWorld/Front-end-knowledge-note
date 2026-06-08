@@ -1190,7 +1190,9 @@ default: () => ([] 或 {})
    const request = axios.create({
      // 配置基地址
      baseURL: "基地址", 
-     timeout:毫秒 // 请求超时时间
+     timeout:毫秒, // 请求超时时间
+     // 以下为自定义配置，此处以是否显示错误提示为例，默认显示（定义请求方法时，可在 url、method 同级处，进行覆盖，上面的 timeout 同理）
+     isShowError: true,
    });
    
    // 利用请求拦截器（请求发送之前做某些事情），配置请求头（主要处理token问题），配置完后，在向服务器发送请求时，可以携带一些参数（token）
@@ -1214,27 +1216,76 @@ default: () => ([] 或 {})
      function (response) {
        // response是请求返回的数据，axios默认加了一层data，因此对response.data进行解构，得到相应的请求状态、消息提示、以及真正想要的数据
        const { 请求状态, 消息提示, 真正想要的数据 } = response.data
+       // 可拿到配置（其中包含自定义配置）
+       const { config } = response
        // 根据请求状态的成功与否决定下面的操作
        if (请求状态) {
          return 真正想要的数据
        } else {
-         // 请求状态为失败时，提示错误消息（此处为element组件提示），并使用reject终止执行，该请求的后续操作同时也会终止
-         Message.error(消息提示)
+         if (config && config.isShowError) {
+           // 请求状态为失败时，提示错误消息（此处为element组件提示），并使用reject终止执行，该请求的后续操作同时也会终止
+           Message.error(消息提示)
+         }
          // 没有错误对象，可以new一个错误对象
          return Promise.reject(new Error(消息提示))
        }
      },
      function (error) {
+       // 可拿到配置（其中包含自定义配置）
+       const { config } = error
        // 当响应拦截器发生处理错误，提示错误信息（此处为element组件提示），并使用reject终止执行，该请求的后续操作同时也会终止
-       Message.error(error.message)
-       if (error.code === "ECONNABORTED") {
-         Message.error("接口请求超时！")
-       } else if (error.code === "ERR_NETWORK") {
-         Message.error("当前网络不佳，请检查网络后重试！")
-       } else if (error.response.status === 500) {
-         Message.error("接口 500 报错！请联系后端解决！")
-       } else {
-         Message.error(error.message)
+       if (config && config.isShowError) {
+         // 默认提示（axios自己抛出的英文错误消息）
+         let errMsg = error.message;
+         // 没有 response，代表无网络
+         if (!error.response) {
+           errMsg = "当前网络不佳，请检查网络后重试！";
+         } else if (
+           error.code === "ECONNABORTED" ||
+           error.message.includes("timeout")
+         ) {
+           errMsg = "前端请求超时，请稍后重试";
+         } else {
+           // 接口触发了浏览器的响应失败，正常走响应拦截器的失败钩子（国内 90% 的后端做法不符合 REST 标准，统一 HTTP 层成功，业务层 code 失败）
+           // 遇到此情况，响应拦截器中的失败钩子，就成了摆设，不要和后端争执，也不是后端菜，而是后端懒，前端在响应拦截器的成功钩子里处理逻辑即可
+           const { status } = error.response;
+           switch (status) {
+             case 400:
+               errMsg = "请求参数错误";
+               break;
+             case 401:
+               errMsg = "未登录或登录已过期";
+               break;
+             case 403:
+               errMsg = "无权限访问";
+               break;
+             case 404:
+               errMsg = "接口不存在";
+               break;
+             case 405:
+               errMsg = "请求方法不允许";
+               break;
+             case 408:
+               errMsg = "后端服务请求超时";
+               break;
+             case 422:
+               errMsg = "参数校验失败";
+               break;
+             case 500:
+               errMsg = "服务器内部错误";
+               break;
+             case 502:
+               errMsg = "网关错误";
+               break;
+             case 503:
+               errMsg = "服务不可用";
+               break;
+             case 504:
+               errMsg = "网关超时";
+               break;
+           }
+         }
+         Message.error(errMsg);
        }
        ...中间其它操作（token 的有感刷新，无感刷新）
        // 此处使用的是错误方法里error
@@ -2494,7 +2545,7 @@ module.exports = {
 
 ##### （二）VW 适配（一个插件即可）
 
-1. **下载 postcss-px-to-viewport 开发依赖包：yarn add -D postcss-px-to-viewport**
+1. **下载 postcss-px-to-viewport 开发依赖包：yarn add -D postcss-px-to-viewport（1.1版本只支持排除）**
 2. **在 src 文件夹同级处，新建 postcss.config.js 文件，需配置如下代码：**
 
 ```javascript
@@ -2511,14 +2562,30 @@ module.exports = {
 module.exports = {
   plugins: {
     "postcss-px-to-viewport": {
-      // 与设计图的尺寸保持一致
+      // 只处理 px 单位；rem、em、%、vh、vw 等其它单位保持原样，避免影响已有响应式或第三方组件样式。
+      unitToConvert: 'px',
+      // 当前大屏视觉稿按 1920 * 1080 制作；插件按宽度公式 px / 1920 * 100vw 换算，16:9 屏幕下高度会等比跟随宽度缩放。
       viewportWidth: 1920,
-      viewportHeight: 1080,
-      unitPrecision: 8,
-      viewportUnit: "vw",
-      selectorBlackList: [".ignore"],
-      minPixelValue: 2,
+      // 转换后最多保留 5 位小数，兼顾定位精度和构建产物体积，避免大屏点位出现明显偏差。
+      unitPrecision: 5,
+      // 转换所有 CSS 属性中的 px，包括 width、height、left、top、font-size、padding 等大屏中常见的固定像素值。
+      propList: ['*'],
+      // 普通属性统一输出 vw，这样页面会随浏览器视口宽度等比缩放。
+      viewportUnit: 'vw',
+      // 字体大小也输出 vw，避免文字在大屏缩放后仍保持固定 px 导致比例失衡。
+      fontViewportUnit: 'vw',
+      // 暂不按选择器跳过转换；如果后续某个大屏局部必须保留 px，可在这里加入选择器或用 px-to-viewport-ignore 注释。
+      selectorBlackList: [],
+      // 1px 及以下通常是边框、发丝线或极细阴影，保留 px 可以避免缩放后变得过细甚至不可见。
+      minPixelValue: 1,
+      // 媒体查询条件里的 px 不转换，避免影响 Vben/Element Plus 既有断点判断。
       mediaQuery: false,
+      // 直接用 vw 替换 px，不额外保留 px 兜底声明，减少重复样式。
+      replace: true,
+      // 插件当前版本只支持 exclude，不支持 include；这里反向排除所有非大屏目录，避免影响其它页面。
+      exclude: /^(?!.*[\\/]src[\\/]views[\\/]bigScreen(?:[\\/]|$)).*/,
+      // 不生成横屏专用媒体查询；本项目大屏按固定 16:9 设计基准做等比缩放即可。
+      landscape: false,
     },
   },
 };
@@ -3819,6 +3886,7 @@ mounted(){
         // 给 y 轴设置一个轴名称
         name: "y轴的名称",
         // 给 y 轴设置最小间隔大小为 1，可以保证坐标轴分割的刻度显示成整数（仅 y 轴 type 类型为 “value” 的时候生效）
+        // 为什么不用 interval，而是用 minInterval：不强制固定间隔，数据量大时仍然自动计算，只限制自动算出来的间隔不能比这个更小
         minInterval: 1,
         // 配置 y 轴线
         axisLine: {
@@ -5013,6 +5081,32 @@ if (video) {
   console.error('视频元素未找到')
 }
 ```
+
+
+
+##### （五）获取直播流的解码方式、编码格式
+
+**浏览器输入栏输入：chrome://media-internals，找到当前播放的直播流标签，其中包含了该直播流所有信息**
+
+1. **查看解码方式：根据 kVideoDecoderName 标签的标识符进行判断**
+
+**硬件解码（GPU 硬解）标识符：**
+
+**Windows：`D3D11VideoDecoder`、`VDAVideoDecoder`（Media Foundation 硬解）**
+
+**macOS：`VideoToolboxVideoDecoder`**
+
+**Linux：`VaapiVideoDecoder`、`MojoVideoDecoder`**
+
+**软件解码（CPU 软解）标识符：**
+
+**`FFmpegVideoDecoder`（最常见）**
+
+**`VpxVideoDecoder`（VP8/VP9 软解）**
+
+2. **查看编码格式：根据 kVideoTracks 标签里的 codec 进行判断**
+
+**h264（avc1）、h265（hvc1 或 hevc）**
 
 
 
@@ -6274,15 +6368,23 @@ $h: 0;
 3. **使用方式（需要在固定宽高的容器内使用，滚动表格组件默认撑满父容器大小）：**
 
 ```vue
-<scroll-table :num="4" :data="表格数据源" :columns="columns">
+<scroll-table :num="4" :data="表格数据源" :columns="columns" @rowClick="rowClick">
   <template slot="自定义插槽名称" slot-scope="{ column, row }"> {{ column 为当前列数据, row 为当前行数据 }} </template>
   <template slot="empty"> 自定义空状态 </template>
 </scroll-table>
 ```
 
-**data 属性为表格数据源，num 属性为当前滚动表格一页展示的行数，empty 插槽可自定义空状态**
+**num 属性：当前滚动表格一页展示的行数**
 
-**columns 属性为表格配置项（语法借鉴了常见组件库的表格配置语法）：**
+**data 属性：表格数据源**
+
+**rowClick 事件：当前整个行点击触发，可拿到当前行数据（若每行的某一项也具备点击事件，会冒泡传递到行点击事件，需要给那一项阻止传递：@click.stop）**
+
+**自定义插槽：暴露两个参数，column 为当前列数据, row 为当前行数据** 
+
+**empty 插槽：可自定义数据为空时的样式**
+
+**columns 属性：表格配置项（语法借鉴了常见组件库的表格配置语法）：**
 
 ```javascript
 columns: [{
@@ -6294,7 +6396,15 @@ columns: [{
         },
 ```
 
-**其中自定义插槽暴露两个参数，column 为当前列数据, row 为当前行数据** 
+**组件特性：**
+
+1. **支持对数据进行序列化对比，数据变化时才触发滚动初始化**
+2. **自动滚动采取动画帧平缓过渡，支持鼠标滚动表格时，滚动距离始终为一行高度及其倍数，不会存在滚动半行的情况**
+3. **默认不使用插槽的情况下，支持省略和悬浮提示，悬浮提示根据边界方位自适应调整**
+4. **num 属性设置支持自适应，页面宽高变化，显示效果保持设定的行数**
+5. **对于一些简单的渲染，如加单位之类的，插槽渲染比较繁琐，支持 columns 配置项中通过 customRender 渲染函数，来简单输出自定义内容**
+6. **支持插槽内容检测，若定义了插槽，但实际插槽没有内容，默认按照渲染函数、进行渲染，而不是显示空白**
+7. **通过 scss 语法动态循环生成类名，支持滚动表格组件可以被第三方适配插件（vw、rem）等自动转换**
 
 
 

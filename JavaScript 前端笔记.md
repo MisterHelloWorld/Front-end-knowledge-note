@@ -2242,9 +2242,13 @@ class 类名{
 
 #### Lodash 常用方法
 
-**方法一（主要用于筛选对象）：var 变量名 = _.pickBy（对象名 , function（value，key）{ return 筛选条件 }）**
+**（一）筛选对象：var 变量名 = _.pickBy（对象名 , function（value，key）{ return 筛选条件 }）**
 
 **注意：如果不指定筛选函数，var 变量名 = _.pickBy（对象名），默认会保留所有 "真值"（排除 `false`、`null`、`undefined`、`0`、`''` 等）**
+
+
+
+**（二）去除对象某个属性：var 变量名 = _.omit (对象，[ '属性1', '属性2' ])**
 
 
 
