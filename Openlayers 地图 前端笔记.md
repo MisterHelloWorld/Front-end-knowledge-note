@@ -316,13 +316,23 @@ const 中间点 = 几何信息.getCoordinateAt(0.5)
 
 ```javascript
     创建图层的方法 (数据列表) {
-      // 每次创建前，先移除图层及图层内部的要素
-      if (this.图层名称) {
-        // 移除图层
-        this.map.removeLayer(this.图层名称)
+      // 如果地图实例不存在，后面不执行
+      if (!this.map) return
+
+      // 每次创建前先销毁图层，此处书写的是销毁方法，应放在 methods 中，此处调用即可
+      destroy图层名称 () {
+        if (!this.图层名称) return
+        // 先移除图层
+        this.map && this.map.removeLayer(this.图层名称)
         // 清除图层源中的现有要素
-        this.图层名称.getSource().clear()
+        const source = this.图层名称.getSource && this.图层名称.getSource()
+        if (source) {
+          source.clear()
+        }
+        // 图层记录置空
+        this.图层名称 = null
       }
+
       // 每次创建前，先移除图层的选择交互
       if (this.选择交互名称) {
         this.map.removeInteraction(this.选择交互名称)
@@ -358,11 +368,13 @@ const 中间点 = 几何信息.getCoordinateAt(0.5)
         // 暂存该要素
         featureList.push(feature)
       })
+      // 如果要素列表不存在任何要素，后面不执行
+      if (featureList.length === 0) return
       // 将保存下来的要素列表，使用 addFeatures 方法一次性添加到矢量图层源中
       vectorSource.addFeatures(featureList)
 
-      // 创建矢量图层
-      const 图层名称 = new VectorLayer({
+      // 创建矢量图层，并用 this.图层名称 记录该图层
+      this.图层名称 = new VectorLayer({
         // 用于控制图层的显示层级（当 A 图层的层级大于 B 图层的层级，即便 B 图层中要素的层级高于 A 图层中要素的 层级，但仍然 A 要素大于 B 要素层级）
         zIndex: 数值
         // 使用矢量图层源（二选一）
@@ -498,21 +510,17 @@ const 中间点 = 几何信息.getCoordinateAt(0.5)
       })
       
         // 基于图层创建选择交互
-      const 选择交互名称 = new Select({
-        layers: [图层名称],
+      this.选择交互名称 = new Select({
+        layers: [this.图层名称],
         // 选择交互方法（鼠标移入）
         condition: pointerMove,
         style: (feature) => { 鼠标移入时的样式 }
       })
 
       // 添加该图层
-      this.map.addLayer(图层名称)
-      // 记录该图层（用于判断图层是否存在，移除图层，或在实际开发中查找该图层中某个要素更新位置等）
-      this.图层名称 = 图层名称
+      this.map.addLayer(this.图层名称)
       // 添加该交互
-      this.map.addInteraction(选择交互名称)
-      // 记录该交互
-      this.选择交互名称 = 选择交互名称
+      this.map.addInteraction(this.选择交互名称)
     }
 ```
 
@@ -521,6 +529,29 @@ const 中间点 = 几何信息.getCoordinateAt(0.5)
 ```javascript
     this.创建图层的方法(数据列表)
 ```
+
+3. **若该功能模块需要进行筛选，例如根据类型，进行控制显示隐藏，那么建议拆分图层，并归类到一个集合配置中**
+
+   - 销毁图层集合里的所有图层：
+
+     ```javascript
+         destroyXXXLayers () {
+           Object.keys(this.Layers || {}).forEach((layer) => {
+             const currentLayer = this.XXXLayers[layer]
+             if (!currentLayer) return
+             if (this.map) {
+               this.map.removeLayer(currentLayer)
+             }
+             const source = currentLayer.getSource && currentLayer.getSource()
+             if (source) {
+               source.clear()
+             }
+           })
+           this.XXXLayers = {}
+         }
+     ```
+
+     
 
 
 
@@ -819,6 +850,98 @@ const {start, end} = shortenLineBoth(起始点经度, 起始点纬度, 终点经
           feature.setStyle([isSelected ? 高亮样式3 : 默认样式3])
         }
       })
+    },
+```
+
+
+
+#### 十一、地图堆积区域只显示一个标签
+
+```javascript
+    // 此处以处理船舶数据为例，两个参数（数据源，距离阈值：控制间隔多少距离属于堆积）
+    processShipData (dataArray, distanceThreshold) {
+      // 主处理逻辑
+      const ships = dataArray.filter((ship) => ship.latitude !== null && ship.longitude !== null)
+      const visited = new Set()
+      const resultMMSI = new Set() // 使用Set避免重复记录
+
+      ships.forEach((currentShip, index) => {
+        if (visited.has(index)) return
+
+        // 步骤1: 找到当前船舶的所有邻近船舶（BFS分组）
+        const cluster = []
+        const queue = [index]
+        visited.add(index)
+
+        while (queue.length > 0) {
+          const i = queue.shift()
+          cluster.push(i)
+          const shipA = ships[i]
+
+          // 获取船舶A的像素位置
+          const pixelA = this.map.getPixelFromCoordinate([shipA.latitude, shipA.longitude])
+
+          // 检查所有未访问船舶的距离
+          ships.forEach((shipB, j) => {
+            if (visited.has(j)) return
+
+            // 获取船舶B的像素位置
+            const pixelB = this.map.getPixelFromCoordinate([shipB.latitude, shipB.longitude])
+
+            // 计算像素距离
+            const distance = Math.sqrt(Math.pow(pixelB[0] - pixelA[0], 2) + Math.pow(pixelB[1] - pixelA[1], 2))
+
+            if (distance <= distanceThreshold) {
+              queue.push(j)
+              visited.add(j)
+            }
+          })
+        }
+
+        // 步骤2: 处理集群
+        let centerShipIndex = -1
+
+        if (cluster.length === 1) {
+          // 孤立船舶直接记录MMSI
+          resultMMSI.add(ships[cluster[0]].mmsi)
+          ships[cluster[0]].isShow = true // 设置isShow为true
+        } else {
+          // 步骤3: 找到集群的中心船舶
+          let minTotalDistance = Infinity
+
+          cluster.forEach((i) => {
+            let totalDistance = 0
+            const shipA = ships[i]
+            const pixelA = this.map.getPixelFromCoordinate([shipA.latitude, shipA.longitude])
+
+            cluster.forEach((j) => {
+              if (i === j) return
+              const shipB = ships[j]
+              const pixelB = this.map.getPixelFromCoordinate([shipB.latitude, shipB.longitude])
+
+              totalDistance += Math.sqrt(Math.pow(pixelB[0] - pixelA[0], 2) + Math.pow(pixelB[1] - pixelA[1], 2))
+            })
+
+            // 更新最小总距离的中心船舶
+            if (totalDistance < minTotalDistance) {
+              minTotalDistance = totalDistance
+              centerShipIndex = i
+            }
+          })
+
+          if (centerShipIndex !== -1) {
+            resultMMSI.add(ships[centerShipIndex].mmsi)
+            ships[centerShipIndex].isShow = true // 设置isShow为true
+          }
+        }
+      })
+
+      // 在原始船舶数据中标记isShow属性
+      ships.forEach((ship) => {
+        ship.isShow = resultMMSI.has(ship.mmsi)
+      })
+
+      return ships // 返回增加了isShow属性的船舶数据
     },
 ```
 

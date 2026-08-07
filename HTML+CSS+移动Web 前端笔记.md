@@ -658,13 +658,15 @@ background-image: linear-gradient(
 
 ### 图片边框的使用
 
+**前提条件：需要 ui 提供实心的异形边框背景**
+
 **四行代码，直接写即可，缺一不可：**
 
 **border：边框宽度 颜色 solid；**
 
 **border-image-source：url（图片边框的路径）;**
 
-**border-image-slice：数值 数值 数值 数值；（注意不带单位，且按照实际图片真实尺寸，依次上右下左的保留顺序，给容器拦腰切割四刀，每一刀恰好是四个角想要保留的位置边沿）**
+**border-image-slice：数值 数值 数值 数值 fill；（注意不带单位，且按照实际图片真实尺寸，依次上右下左的保留顺序，给容器拦腰切割四刀，每一刀恰好是四个角想要保留的位置边沿）**
 
 **border-image-width：数值px 数值px 数值px 数值px；（尤其注意，数字与上面保持一致，但是要加单位）**
 
@@ -1077,40 +1079,40 @@ box-shadow: 0px 0px 0px 颜色;
 // 单个字体文件
 @font-face {
   font-family: '自定义字体名称';
-  src: url('../assets/fonts/字体文件.ttf') format('truetype');
+  src: url('../assets/fonts/字体文件.ttf') format('opentype');
 }
 
 // 同一字体，多种字重的字体文件（该字体下包含了完整的 300-800 字重的字体文件）
 @font-face {
   font-family: '相同族名';
-  src: url('../assets/fonts/字体文件-Light.ttf') format('truetype');
+  src: url('../assets/fonts/字体文件-Light.ttf') format('opentype');
   font-weight: 300;
 }
 @font-face {
   font-family: '相同族名';
-  src: url('../assets/fonts/字体文件-Regular.ttf') format('truetype');
+  src: url('../assets/fonts/字体文件-Regular.ttf') format('opentype');
   // 同 font-weight: normal;
   font-weight: 400;
 }
 @font-face {
   font-family: '相同族名';
-  src: url('../assets/fonts/字体文件-Medium.ttf') format('truetype');
+  src: url('../assets/fonts/字体文件-Medium.ttf') format('opentype');
   font-weight: 500;
 }
 @font-face {
   font-family: '相同族名';
-  src: url('../assets/fonts/字体文件-SemiBold.ttf') format('truetype');
+  src: url('../assets/fonts/字体文件-SemiBold.ttf') format('opentype');
   font-weight: 600;
 }
 @font-face {
   font-family: '相同族名';
-  src: url('../assets/fonts/字体文件-Bold.ttf') format('truetype');
+  src: url('../assets/fonts/字体文件-Bold.ttf') format('opentype');
   // 同 font-weight: bold;
   font-weight: 700;
 }
 @font-face {
   font-family: '相同族名';
-  src: url('../assets/fonts/字体文件-ExtraBold.ttf') format('truetype');
+  src: url('../assets/fonts/字体文件-ExtraBold.ttf') format('opentype');
   // 同 font-weight: bold;
   font-weight: 800;
 }

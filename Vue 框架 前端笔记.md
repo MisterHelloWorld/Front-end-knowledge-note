@@ -2562,30 +2562,28 @@ module.exports = {
 module.exports = {
   plugins: {
     "postcss-px-to-viewport": {
-      // 只处理 px 单位；rem、em、%、vh、vw 等其它单位保持原样，避免影响已有响应式或第三方组件样式。
+      // 只处理 px 单位；rem、em、%、vh、vw 等其它单位保持原样，避免影响已有响应式或第三方组件样式
       unitToConvert: 'px',
-      // 当前大屏视觉稿按 1920 * 1080 制作；插件按宽度公式 px / 1920 * 100vw 换算，16:9 屏幕下高度会等比跟随宽度缩放。
+      // 设计稿尺寸为 1920 * 1080，插件按宽度公式 px / 1920 * 100vw 换算，16:9 屏幕下高度会等比跟随宽度缩放
       viewportWidth: 1920,
-      // 转换后最多保留 5 位小数，兼顾定位精度和构建产物体积，避免大屏点位出现明显偏差。
-      unitPrecision: 5,
-      // 转换所有 CSS 属性中的 px，包括 width、height、left、top、font-size、padding 等大屏中常见的固定像素值。
+      // 转换后最多保留 8 位小数，兼顾精度
+      unitPrecision: 8,
+      // 转换所有 CSS 属性中的 px
       propList: ['*'],
-      // 普通属性统一输出 vw，这样页面会随浏览器视口宽度等比缩放。
+      // 适配单位按 vw 进行适配
       viewportUnit: 'vw',
-      // 字体大小也输出 vw，避免文字在大屏缩放后仍保持固定 px 导致比例失衡。
+      // 字体大小也输出 vw
       fontViewportUnit: 'vw',
-      // 暂不按选择器跳过转换；如果后续某个大屏局部必须保留 px，可在这里加入选择器或用 px-to-viewport-ignore 注释。
+      // 如果后续局部不需要进行转换，必须保留 px，可在这里加入选择器或用 px-to-viewport-ignore 注释
       selectorBlackList: [],
-      // 1px 及以下通常是边框、发丝线或极细阴影，保留 px 可以避免缩放后变得过细甚至不可见。
-      minPixelValue: 1,
-      // 媒体查询条件里的 px 不转换，避免影响 Vben/Element Plus 既有断点判断。
+      // 最小适配单位
+      minPixelValue: 0.1,
+      // 媒体查询条件里的 px 不转换
       mediaQuery: false,
-      // 直接用 vw 替换 px，不额外保留 px 兜底声明，减少重复样式。
+      // 直接用 vw 替换 px，不额外保留 px 兜底声明，减少重复样式
       replace: true,
-      // 插件当前版本只支持 exclude，不支持 include；这里反向排除所有非大屏目录，避免影响其它页面。
+      // 插件当前版本只支持 exclude，不支持 include，例如我只想适配大屏，可反向排除所有非大屏目录，避免影响其它页面
       exclude: /^(?!.*[\\/]src[\\/]views[\\/]bigScreen(?:[\\/]|$)).*/,
-      // 不生成横屏专用媒体查询；本项目大屏按固定 16:9 设计基准做等比缩放即可。
-      landscape: false,
     },
   },
 };
@@ -5599,7 +5597,11 @@ export default class ConnectWebSocket {
 
   // 发送消息
   send (data) {
-    this.ws.send(data)
+    if (this.ws && this.ws.readyState && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(data)
+    } else {
+      console.warn('WS 连接异常，发送中止')
+    }
   }
 }
 ```
@@ -5989,19 +5991,21 @@ export default {
 1. **在 vue 文件的 style 标签中利用 scss 语法动态生成宽度和高度的类名**
 
 ```scss
-$i: 0;
-@while $i<=1920 {
-  $i: $i + 1;
-  .width-#{$i} {
-    width: #{$i}px !important;
-  }
-}
-@while $i<=1080 {
-  $i: $i + 1;
-  .height-#{$i} {
-    height: #{$i}px !important;
-  }
-}
+$i: 0;  
+@while $i<=1920 {  
+  $i: $i + 1;  
+  .width-#{$i} {  
+    width: #{$i}px !important;  
+  }  
+}  
+  
+$j: 0;  
+@while $j<=1080 {  
+  $j: $j + 1;  
+  .height-#{$j} {  
+    height: #{$j}px !important;  
+  }  
+}  
 ```
 
 2. **搭配特殊的动态类名语法（模板字符串外面嵌套中括号）进行使用动态类名**
