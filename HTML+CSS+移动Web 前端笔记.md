@@ -660,9 +660,7 @@ background-image: linear-gradient(
 
 **前提条件：需要 ui 提供实心的异形边框背景**
 
-**四行代码，直接写即可，缺一不可：**
-
-**border：边框宽度 颜色 solid；**
+**三行代码，直接写即可，缺一不可：**
 
 **border-image-source：url（图片边框的路径）;**
 

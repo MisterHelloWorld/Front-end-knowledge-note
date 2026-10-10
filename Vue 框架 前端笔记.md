@@ -1349,7 +1349,7 @@ default: () => ([] 或 {})
 
 **给组件标签名（注意是组件标签名）添加 ref 属性（ref="xxx"），调用该组件内的方法：this.$refs.ref名.函数名 ( )**
 
-**补充（偶尔用到）：子组件调用父组件的方法，可使用 this.$parent.函数名（）**
+**补充（不建议使用，未来若子组件变更为另一个组件的插槽内容时，拿到的 $parent 会错误）：子组件调用父组件的方法，可使用 this.$parent.函数名（）**
 
 **本质： `this.$parent`相当于拿到了父组件的 this，`this.$refs.ref 名`相当于拿到的是子组件的 this**
 
@@ -4316,9 +4316,8 @@ export default {
               url = newVal;
             } else {
               // 此处需要在 .env.development 文件中配置后端的 host 地址
-              const host =
-                process.env.VUE_APP_BACKEND_HOST || window.location.host;
-              url = "http://" + host + newVal;
+              const host = process.env.VUE_APP_BACKEND_HOST || window.location.host;
+              url = window.location.protocol + "//" + host + newVal;
             }
             this.init(url);
           });
@@ -4757,9 +4756,8 @@ export default {
               url = newVal;
             } else {
               // 此处需要在 .env.development 文件中配置后端的 host 地址
-              const host =
-                process.env.VUE_APP_BACKEND_HOST || window.location.host;
-              url = "http://" + host + newVal;
+              const host = process.env.VUE_APP_BACKEND_HOST || window.location.host;
+              url = window.location.protocol + "//" + host + newVal;
             }
             this.init(url);
           });
@@ -4999,9 +4997,8 @@ export default {
               url = newVal;
             } else {
               // 此处需要在 .env.development 文件中配置后端的 host 地址
-              const host =
-                process.env.VUE_APP_BACKEND_HOST || window.location.host;
-              url = "http://" + host + newVal;
+              const host = process.env.VUE_APP_BACKEND_HOST || window.location.host;
+              url = window.location.protocol + "//" + host + newVal;
             }
             this.init(url);
           });
@@ -5105,6 +5102,180 @@ if (video) {
 2. **查看编码格式：根据 kVideoTracks 标签里的 codec 进行判断**
 
 **h264（avc1）、h265（hvc1 或 hevc）**
+
+
+
+##### （六）启用或关闭浏览器对于 h265 的硬解能力
+
+浏览器地址栏输入：chrome://flags/#hardware-accelerated-video-decoding
+
+搜索 Hardware-accelerated video decode 选项，进行开启或关闭即可
+
+
+
+##### （七）利用脚本将某个直播流地址代理成任意数量的不同地址
+
+浏览器同源策略，会让http的直播流限制在最多六路，此脚本可以代理成任意数量
+
+1. **在项目根目录新建 scripts 目录，并在内部新建 stream-proxy.js 文件，写入以下代码：**
+
+```javascript
+#!/usr/bin/env node
+/**
+ * 把一个 HTTP-FLV 地址代理成多个本地端口。
+ *
+ * 用途：浏览器对同一个 origin（协议 + 主机 + 端口）最多只允许约 6 个并发
+ * HTTP/1.1 连接，而直播流是长连接、不会释放，因此单地址最多只能播 6 路。
+ * 每个本地端口都是一个独立 origin，各自有 6 个连接名额，
+ * 于是"一个源"就能支撑 6 × 端口数 路并发。
+ *
+ * 用法（任选一种）：
+ *   node scripts/stream-proxy.js --url <上游 FLV 地址> --count 3
+ *   node scripts/stream-proxy.js --url <上游 FLV 地址> --ports 9601,9602,9603
+ *   npm run stream-proxy -- --url <上游 FLV 地址> --count 3
+ *
+ * 参数：
+ *   --url    必填，上游 HTTP-FLV 地址
+ *   --count  可选，要开几个端口，默认 3
+ *   --base   可选，起始端口，默认 9601（按 count 依次递增）
+ *   --ports  可选，显式指定端口列表；给了它就以它为准，忽略 count/base
+ *
+ * 示例：
+ *   node scripts/stream-proxy.js \
+ *     --url http://192.168.101.163:28080/ceshi/test02.live.flv \
+ *     --count 4
+ *
+ * 之后在播放器验证页里填：
+ *   http://127.0.0.1:9601/ceshi/test02.live.flv
+ *   http://127.0.0.1:9602/ceshi/test02.live.flv
+ *   http://127.0.0.1:9603/ceshi/test02.live.flv
+ *
+ * 停止：在该脚本所在的终端按 Ctrl+C。
+ */
+const http = require("http");
+const { URL } = require("url");
+
+function parseArgs(argv) {
+  const options = { url: "", ports: [], count: 3, base: 9601 };
+  for (let index = 0; index < argv.length; index += 1) {
+    const current = argv[index];
+    if (current === "--url") {
+      options.url = argv[index + 1] || "";
+      index += 1;
+    } else if (current === "--count") {
+      options.count = Number(argv[index + 1]) || options.count;
+      index += 1;
+    } else if (current === "--base") {
+      options.base = Number(argv[index + 1]) || options.base;
+      index += 1;
+    } else if (current === "--ports") {
+      options.ports = String(argv[index + 1] || "")
+        .split(",")
+        .map((item) => Number(item.trim()))
+        .filter((item) => Number.isInteger(item) && item > 0 && item < 65536);
+      index += 1;
+    }
+  }
+  // 未显式给 --ports 时，按 --count 从 --base 依次生成端口。
+  if (!options.ports.length) {
+    const count = Math.min(32, Math.max(1, Math.floor(options.count)));
+    for (let index = 0; index < count; index += 1) {
+      options.ports.push(options.base + index);
+    }
+  }
+  return options;
+}
+
+// 每个端口建一个转发服务：只做字节转发，不解析、不整段缓冲，内存占用与流长度无关。
+function createProxy(port, target, onReady) {
+  const server = http.createServer((req, res) => {
+    const upstream = http.request(
+      {
+        host: target.hostname,
+        port: target.port || 80,
+        // 路径原样转发，浏览器里保留上游的路径结构。
+        path: req.url,
+        method: req.method,
+        headers: {
+          ...req.headers,
+          host: `${target.hostname}:${target.port || 80}`,
+        },
+      },
+      (upstreamResponse) => {
+        res.writeHead(upstreamResponse.statusCode, upstreamResponse.headers);
+        upstreamResponse.pipe(res);
+      }
+    );
+    upstream.on("error", () => {
+      if (!res.headersSent) {
+        res.writeHead(502);
+      }
+      res.end();
+    });
+    // 必须在响应关闭（客户端断开或播放结束）时断开上游。
+    // 若监听 req 的 close，GET 请求体一结束就会触发，导致流转发被立刻掐断。
+    res.on("close", () => upstream.destroy());
+    upstream.end();
+  });
+  server.on("error", (error) => {
+    console.error(`[端口 ${port}] 启动失败：${error.message}`);
+  });
+  server.listen(port, "127.0.0.1", () => onReady(port));
+  return server;
+}
+
+function main() {
+  const options = parseArgs(process.argv.slice(2));
+  if (!options.url) {
+    console.error(
+      "缺少 --url 参数。示例：node scripts/stream-proxy.js --url http://host:port/live/a.flv --count 3"
+    );
+    process.exit(1);
+  }
+  let target;
+  try {
+    target = new URL(options.url);
+  } catch (error) {
+    console.error(`--url 不是合法地址：${options.url}`);
+    process.exit(1);
+  }
+  if (target.protocol !== "http:") {
+    console.error("当前只支持 http 上游地址。");
+    process.exit(1);
+  }
+
+  const readyPorts = [];
+  const servers = options.ports.map((port) =>
+    createProxy(port, target, (readyPort) => {
+      readyPorts.push(readyPort);
+      // 全部端口就绪后，直接打印可粘贴到播放器验证页的地址。
+      if (readyPorts.length === options.ports.length) {
+        console.log(`上游：${options.url}`);
+        console.log(
+          `已启动 ${readyPorts.length} 个端口（每个相当于一个独立地址，各 6 个并发名额），共可支撑 ${readyPorts.length * 6} 路。`
+        );
+        console.log("把下面几行粘贴到播放器验证页的地址输入框：");
+        readyPorts.forEach((item) => {
+          console.log(`  http://127.0.0.1:${item}${target.pathname}`);
+        });
+        console.log("按 Ctrl+C 停止。");
+      }
+    })
+  );
+
+  const shutdown = () => {
+    servers.forEach((server) => server.close());
+    process.exit(0);
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
+}
+
+main();
+```
+
+2. **在 package.json 中新增脚本命令："stream-proxy": "node scripts/stream-proxy.js"**
+3. **终端执行命令：npm run stream-proxy -- --url "直播流地址" --count 任意数量**
 
 
 
@@ -5491,6 +5662,8 @@ export default class ConnectWebSocket {
     this.ws = null
     // 用户凭据
     const token = 从 vuex 中获取
+    // WebSocket 协议跟随当前页面，服务地址统一从环境变量读取。
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     // 连接地址（本地开发环境HOST || 正式上线环境HOST）
     const host = process.env.VUE_APP_BACKEND_HOST || window.location.host
     // 查询字符串所需要的参数（后续要将该对象转换为查询字符串格式）
@@ -5503,7 +5676,7 @@ export default class ConnectWebSocket {
       ...this.params
     }
     // 建立连接
-    this.ws = new WebSocket('ws://' + host + this.url + '?' + qs.stringify(query))
+    this.ws = new WebSocket(protocol + '//' + host + this.url + '?' + qs.stringify(query))
 
     // 连接成功时触发
     this.ws.onopen = () => {
@@ -5570,6 +5743,8 @@ export default class ConnectWebSocket {
     if (this.ws && this.ws.readyState === WebSocket.CLOSED) {
       // 每五秒进行一次重连
       this.reconnectInterval = setInterval(() => {
+        // 连接仍在建立中时保留当前握手，避免关闭 CONNECTING 连接触发浏览器报错。
+        if (this.ws && this.ws.readyState === WebSocket.CONNECTING) return
         // 如果服务器没有进行关闭，确保手动进行关闭
         this.ws && this.ws.close()
         // 将 ws 实例清空
